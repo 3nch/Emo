@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心理健康检测 - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .q-fade { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .progress-bar-smooth { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .recording-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <nav class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white"><span>🌙</span></div>
+                <span class="text-xl font-bold text-slate-800">心愈 AI</span>
+            </div>
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="text-teal-600 font-bold border-b-2 border-teal-600 pb-1">抑郁症检测</a>
+                <a href="/soothe" class="hover:text-teal-600 transition-colors">情绪垃圾桶</a>
+                <a href="/articles" class="hover:text-teal-600 transition-colors">心理科普</a>
+                <a href="/community" class="hover:text-teal-600 transition-colors">互助社区</a>
+                <a href="/profile" class="hover:text-teal-600 transition-colors">个人中心</a>
+            </div>
+            <div id="step-counter" class="text-sm font-bold text-teal-600 tracking-widest uppercase">STEP --/--</div>
+            <div onclick="window.location.href='/profile'" class="w-9 h-9 rounded-full bg-teal-100 border border-teal-200 overflow-hidden cursor-pointer hover:ring-2 ring-teal-500 transition-all">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ session.username }}" alt="avatar">
+            </div>
+        </div>
+    </nav>
+
+    <main class="pt-32 pb-16 px-6 flex flex-col items-center">
+        <div class="w-full max-w-2xl mb-10">
+            <div class="flex justify-between text-[10px] font-bold text-teal-600 mb-2 uppercase">
+                <span id="progress-percent">进度: 0%</span>
+                <span id="category-tag">维度匹配中...</span>
+            </div>
+            <div class="h-1.5 w-full bg-teal-100/30 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-teal-600 progress-bar-smooth" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div id="assessment-card" class="w-full max-w-2xl bg-white rounded-[3rem] p-10 shadow-2xl border border-white min-h-[500px] flex flex-col justify-between relative">
+            <div id="question-content" class="q-fade relative z-10"></div>
+
+            <div class="flex justify-between items-center mt-8 pt-6 border-t border-slate-50 relative z-10">
+                <button id="prev-btn" onclick="handlePrev()" class="flex items-center gap-2 text-slate-400 hover:text-teal-600 font-medium transition-all opacity-0 pointer-events-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    上一题
+                </button>
+                <span class="text-slate-300 text-[10px] tracking-widest">请根据最近一周的实际情况选择</span>
+            </div>
+        </div>
+    </main>
+
+    <div id="voice-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-[3rem] p-10 max-w-2xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div id="voice-icon-box" class="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">🎙️</div>
+            <h3 class="text-2xl font-bold text-slate-800 mb-2 text-center">多模态语音采样</h3>
+            <p class="text-slate-500 text-sm mb-8 text-center">为了获得更准确的评估结果，请完成以下语音任务</p>
+            
+            <div class="space-y-6 mb-8 text-left">
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                    <h4 class="text-xs font-bold text-teal-600 uppercase tracking-widest mb-3">任务一：朗读下列句子</h4>
+                    <p class="text-slate-700 leading-relaxed font-medium">
+                        “今天的天气很平常，我正在尝试通过这个系统了解自己的内心世界。无论结果如何，我都会积极面对生活中的每一次起伏。”
+                    </p>
+                </div>
+
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                    <h4 class="text-xs font-bold text-teal-600 uppercase tracking-widest mb-3">任务二：回答引导问题</h4>
+                    <p class="text-slate-700 leading-relaxed font-medium">
+                        您最近感到最有压力的一件事是什么？您是如何应对那种感觉的？
+                    </p>
+                </div>
+            </div>
+
+            <div id="record-btn-container" class="flex flex-col items-center gap-4">
+                <div id="voice-desc" class="text-teal-600 text-sm font-bold animate-pulse hidden">正在录音中，请开始朗读并回答...</div>
+                <button id="record-btn" class="w-20 h-20 bg-teal-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-teal-200 active:scale-95 transition-all">
+                    <span id="record-text" class="text-2xl">🎤</span>
+                </button>
+                <div class="flex items-center gap-3">
+                    <span id="timer" class="text-teal-600 font-mono font-bold hidden">00:00</span>
+                    <span id="recording-dot" class="w-2 h-2 bg-red-500 rounded-full animate-ping hidden"></span>
+                </div>
+            </div>
+            
+            <div class="mt-8 flex flex-col items-center gap-4">
+                <p class="text-[10px] text-slate-400">建议录制时间：15-30 秒</p>
+                <button onclick="finalSubmit(null)" class="text-slate-400 text-xs hover:text-teal-600 underline">暂不方便说话，跳过检测</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let questions = [], currentIndex = 0, answers = {}, pathHistory = [];
+        let mediaRecorder, audioChunks = [], timerInterval;
+
+        const OPTION_MAP = {
+            'PHQ-9': ['完全没有', '有几天', '一半以上时间', '几乎天天'],
+            'GAD-7': ['完全没有', '有几天', '一半以上时间', '几乎天天'],
+            'PSS-10': ['从未', '偶尔', '经常', '总是'],
+            'PSQI': ['从未', '偶尔', '经常', '总是'],
+            'PSS-STYLE': ['从未', '偶尔', '经常', '总是'],
+            'DEFAULT': ['完全没有', '有几天', '一半以上时间', '几乎天天']
+        };
+
+        async function init() {
+            console.log('开始加载题目...');
+            try {
+                const res = await fetch('/api/questions');
+                console.log('响应状态:', res.status);
+                if (!res.ok) throw new Error('Failed to fetch questions: ' + res.status);
+                const data = await res.json();
+                console.log('题目数据:', data);
+                questions = data;
+                
+                if (questions.length === 0) {
+                    showError('暂无题目数据，请联系管理员初始化题库');
+                    return;
+                }
+                
+                renderQuestion();
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                showError('题目加载失败: ' + error.message);
+            }
+        }
+
+        function showError(msg) {
+            const content = document.getElementById('question-content');
+            if (content) {
+                content.innerHTML = `
+                    <div class="text-center py-10">
+                        <p class="text-red-400 mb-4">${msg}</p>
+                        <p class="text-xs text-slate-300">请刷新页面重试</p>
+                    </div>`;
+            }
+        }
+
+        function renderQuestion() {
+            if (!questions || questions.length === 0) return;
+            
+            const q = questions[currentIndex];
+            const content = document.getElementById('question-content');
+            const prevBtn = document.getElementById('prev-btn');
+            const stepCounter = document.getElementById('step-counter');
+            const progressBar = document.getElementById('progress-bar');
+            const progressPercent = document.getElementById('progress-percent');
+            const categoryTag = document.getElementById('category-tag');
+            
+            if (!q || !content || !prevBtn || !stepCounter || !progressBar || !progressPercent || !categoryTag) {
+                console.error('Required DOM elements not found');
+                return;
+            }
+            
+            const progress = ((currentIndex + 1) / questions.length) * 100;
+
+            stepCounter.innerText = `STEP ${String(currentIndex + 1).padStart(2, '0')}/${questions.length}`;
+            progressBar.style.width = `${progress}%`;
+            progressPercent.innerText = `进度: ${Math.round(progress)}%`;
+            categoryTag.innerText = `评估维度: ${q.scale_type}`;
+
+            prevBtn.style.opacity = currentIndex > 0 ? "1" : "0";
+            prevBtn.style.pointerEvents = currentIndex > 0 ? "auto" : "none";
+
+            const options = OPTION_MAP[q.scale_type] || OPTION_MAP['DEFAULT'];
+            content.innerHTML = `
+                <h2 class="text-2xl font-bold text-slate-800 mb-10 leading-snug">${q.text}</h2>
+                <div class="grid gap-4">
+                    ${options.map((label, val) => `
+                        <button onclick="handleSelect(${q.id}, ${val})" 
+                                class="w-full p-6 text-left rounded-2xl border-2 transition-all flex items-center 
+                                ${answers[q.id] === val ? 'border-teal-500 bg-teal-50' : 'border-slate-50 hover:border-teal-200'}">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center mr-4 font-bold 
+                                ${answers[q.id] === val ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-400'}">${String.fromCharCode(65 + val)}</div>
+                            <span class="font-medium ${answers[q.id] === val ? 'text-teal-800' : 'text-slate-600'}">${label}</span>
+                        </button>`).join('')}
+                </div>`;
+        }
+
+        function handleSelect(qId, val) {
+            answers[qId] = val;
+            pathHistory.push(currentIndex);
+            if (currentIndex < questions.length - 1) { currentIndex++; renderQuestion(); } 
+            else { document.getElementById('voice-modal').classList.remove('hidden'); }
+        }
+
+        function handlePrev() { if (pathHistory.length > 0) { currentIndex = pathHistory.pop(); renderQuestion(); } }
+
+        // --- 录音逻辑实现 ---
+        document.getElementById('record-btn').onclick = async function() {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                stopRecording();
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/wav' });
+                    finalSubmit(blob);
+                };
+
+                mediaRecorder.start();
+                startUIEffects();
+            } catch (err) {
+                alert("无法访问麦克风，请检查权限。");
+            }
+        };
+
+        function startUIEffects() {
+            const desc = document.getElementById('voice-desc');
+            const timerEl = document.getElementById('timer');
+            const dot = document.getElementById('recording-dot');
+            document.getElementById('record-btn').classList.add('recording-pulse', 'bg-red-500');
+            document.getElementById('record-text').innerText = "⏹️";
+            desc.classList.remove('hidden');
+            timerEl.classList.remove('hidden');
+            dot.classList.remove('hidden');
+            let sec = 0;
+            timerInterval = setInterval(() => {
+                sec++;
+                timerEl.innerText = `00:${sec < 10 ? '0'+sec : sec}`;
+                if (sec >= 30) stopRecording(); // 最长30秒，给足朗读+回答时间
+            }, 1000);
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            clearInterval(timerInterval);
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+            document.getElementById('record-btn').classList.remove('recording-pulse', 'bg-red-500');
+            document.getElementById('record-text').innerText = "🎤";
+            document.getElementById('voice-desc').classList.add('hidden');
+            document.getElementById('recording-dot').classList.add('hidden');
+        }
+
+        async function finalSubmit(audioBlob) {
+            const formData = new FormData();
+            formData.append('answers', JSON.stringify(answers));
+            if (audioBlob) formData.append('audio', audioBlob, 'assessment_voice.wav');
+            
+            document.getElementById('voice-modal').innerHTML = `
+                <div class="p-10 text-center">
+                    <div class="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p class="font-bold text-slate-700">正在通过 Wav2Vec2 模型进行情感推理...</p>
+                </div>`;
+
+            const res = await fetch('/api/submit', { method: 'POST', body: formData });
+            const result = await res.json();
+            localStorage.setItem('eval_result', JSON.stringify(result));
+            window.location.href = '/report';
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

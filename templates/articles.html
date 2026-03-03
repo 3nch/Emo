@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心理科普 - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Noto Sans SC', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <nav class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-200">
+                    <span class="text-xl">🌙</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-slate-800">心愈 AI</span>
+            </div>
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="hover:text-teal-600 transition-colors">抑郁症检测</a>
+                <a href="/soothe" class="hover:text-teal-600 transition-colors">情绪垃圾桶</a>
+                <a href="/articles" class="text-teal-600 font-bold border-b-2 border-teal-600 pb-1">心理科普</a>
+                <a href="/community" class="hover:text-teal-600 transition-colors">互助社区</a>
+                <a href="/profile" class="hover:text-teal-600 transition-colors">个人中心</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-6 pt-32 pb-16">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-slate-800 mb-4">心理健康科普</h1>
+            <p class="text-slate-500">了解心理知识，关爱身心健康</p>
+        </div>
+
+        <!-- 分类筛选 -->
+        <div class="flex flex-wrap justify-center gap-3 mb-10">
+            <button onclick="filterArticles('')" class="px-6 py-2 rounded-full bg-teal-600 text-white font-medium">全部</button>
+            <button onclick="filterArticles('Depression')" class="px-6 py-2 rounded-full bg-white text-slate-600 hover:bg-teal-50 font-medium">抑郁</button>
+            <button onclick="filterArticles('Anxiety')" class="px-6 py-2 rounded-full bg-white text-slate-600 hover:bg-teal-50 font-medium">焦虑</button>
+            <button onclick="filterArticles('Sleep')" class="px-6 py-2 rounded-full bg-white text-slate-600 hover:bg-teal-50 font-medium">睡眠</button>
+            <button onclick="filterArticles('Pressure')" class="px-6 py-2 rounded-full bg-white text-slate-600 hover:bg-teal-50 font-medium">压力</button>
+            <button onclick="filterArticles('Social')" class="px-6 py-2 rounded-full bg-white text-slate-600 hover:bg-teal-50 font-medium">社交</button>
+            <button onclick="filterArticles('Self')" class="px-6 py-2 rounded-full bg-white text-slate-600 hover:bg-teal-50 font-medium">自我成长</button>
+        </div>
+
+        <!-- 文章列表 -->
+        <div id="articles-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full flex justify-center py-10">
+                <div class="animate-pulse text-slate-400">正在加载文章...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const categoryNames = {
+            'Depression': '抑郁',
+            'Anxiety': '焦虑',
+            'Sleep': '睡眠',
+            'Pressure': '压力',
+            'Social': '社交',
+            'Self': '自我成长'
+        };
+
+        const categoryColors = {
+            'Depression': 'bg-purple-50 text-purple-600',
+            'Anxiety': 'bg-blue-50 text-blue-600',
+            'Sleep': 'bg-indigo-50 text-indigo-600',
+            'Pressure': 'bg-orange-50 text-orange-600',
+            'Social': 'bg-green-50 text-green-600',
+            'Self': 'bg-pink-50 text-pink-600'
+        };
+
+        let allArticles = [];
+
+        async function loadArticles() {
+            try {
+                const res = await fetch('/api/articles');
+                allArticles = await res.json();
+                renderArticles(allArticles);
+            } catch (e) {
+                document.getElementById('articles-grid').innerHTML = `
+                    <div class="col-span-full text-center py-10 text-red-400">加载失败，请刷新重试</div>`;
+            }
+        }
+
+        function filterArticles(category) {
+            if (!category) {
+                renderArticles(allArticles);
+            } else {
+                const filtered = allArticles.filter(a => a.category === category);
+                renderArticles(filtered);
+            }
+        }
+
+        function renderArticles(articles) {
+            const grid = document.getElementById('articles-grid');
+            if (articles.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400">暂无文章</div>`;
+                return;
+            }
+            
+            grid.innerHTML = articles.map(a => `
+                <div onclick="window.location.href='/article/${a.id}'" 
+                     class="bg-white rounded-[2rem] p-8 shadow-sm hover:shadow-xl transition-all cursor-pointer border border-transparent hover:border-teal-100 group">
+                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium ${categoryColors[a.category] || 'bg-slate-100 text-slate-600'}">
+                        ${categoryNames[a.category] || '科普'}
+                    </span>
+                    <h3 class="text-lg font-bold text-slate-800 mt-4 mb-3 group-hover:text-teal-600 transition-colors">${a.title}</h3>
+                    <p class="text-sm text-slate-500 line-clamp-3">${a.summary || '点击查看全文'}</p>
+                    <div class="mt-6 flex items-center text-teal-600 text-sm font-medium">
+                        阅读全文
+                        <svg class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.onload = loadArticles;
+    </script>
+</body>
+</html>

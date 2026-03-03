@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <nav class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-200">
+                    <span class="text-xl">🌙</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-slate-800">心愈 AI</span>
+            </div>
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="hover:text-teal-600 transition-colors">抑郁症检测</a>
+                <a href="/soothe" class="hover:text-teal-600 transition-colors">情绪垃圾桶</a>
+                <a href="/articles" class="hover:text-teal-600 transition-colors">心理科普</a>
+                <a href="/community" class="hover:text-teal-600 transition-colors">互助社区</a>
+                <a href="/profile" class="text-teal-600 font-bold border-b-2 border-teal-600 pb-1">个人中心</a>
+            </div>
+            <div onclick="window.location.href='/profile'" class="w-9 h-9 rounded-full bg-teal-100 border border-teal-200 overflow-hidden cursor-pointer hover:ring-2 ring-teal-500 transition-all">
+                {% if is_anonymous %}
+                <div class="w-full h-full flex items-center justify-center text-teal-600 text-xs">游客</div>
+                {% else %}
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ username }}" alt="avatar">
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-6 pt-32 pb-16">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="lg:col-span-1 space-y-8">
+                <div class="bg-white rounded-[2.5rem] p-10 text-center shadow-xl shadow-slate-200/50">
+                    <div class="relative inline-block">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ session.username }}" class="w-24 h-24 mx-auto rounded-full border-4 border-teal-50">
+                        <div class="absolute bottom-0 right-0 w-6 h-6 bg-green-500 border-4 border-white rounded-full"></div>
+                    </div>
+                    <h2 class="mt-6 text-2xl font-bold text-slate-800">{{ username }}</h2>
+                    {% if is_anonymous %}
+                    <p class="text-slate-400 text-sm">游客模式 · <a href="/login" class="text-teal-600 hover:underline">登录后查看更多</a></p>
+                    {% else %}
+                    <p class="text-slate-400 text-sm">已加入 · 保持自我关注</p>
+                    {% endif %}
+                    
+                    <div class="mt-10 pt-10 border-t border-slate-50 grid grid-cols-2 gap-4">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-teal-600" id="total-detects">0</p>
+                            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest">测评次数</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-teal-600" id="consecutive-days">0</p>
+                            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest">连续打卡</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 心理健康评分 -->
+                    <div class="mt-8 pt-8 border-t border-slate-50">
+                        <div class="relative pt-1">
+                            <div class="flex mb-2 items-center justify-between">
+                                <div>
+                                    <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-teal-600 bg-teal-100">
+                                        心理健康评分
+                                    </span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs font-semibold inline-block text-teal-600" id="mental-score">--</span>
+                                </div>
+                            </div>
+                            <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-teal-100">
+                                <div id="score-bar" style="width:0%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-teal-600 transition-all duration-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 情绪打卡趋势 -->
+                <div class="bg-white rounded-[2.5rem] p-6 shadow-xl shadow-slate-200/50">
+                    <h3 class="font-bold text-lg mb-4 text-slate-800">本周情绪趋势</h3>
+                    <div class="h-32">
+                        <canvas id="moodChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-teal-900 rounded-[2.5rem] p-8 text-white shadow-xl shadow-teal-900/20">
+                    <h3 class="font-bold text-lg mb-4">今日心情寄语</h3>
+                    <p class="text-teal-100/80 text-sm leading-relaxed italic">
+                        "情绪如同季节，阴晴圆缺皆是常态。重要的是，你始终拥有观察它们的力量。"
+                    </p>
+                </div>
+
+                <!-- 每日打卡 -->
+                <div class="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/50">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-lg text-slate-800">每日情绪打卡</h3>
+                        <button onclick="exportData()" class="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            导出数据
+                        </button>
+                    </div>
+                    
+                    <!-- 今日打卡状态 -->
+                    <div id="checkin-status" class="mb-6">
+                        <div class="flex items-center justify-center py-4 text-slate-400">
+                            <span>正在加载...</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 打卡选项 -->
+                    <div id="checkin-form" class="space-y-4">
+                        <p class="text-sm text-slate-500 mb-4">今天心情怎么样？</p>
+                        <div class="flex justify-between gap-2">
+                            <button onclick="submitCheckin(1, '非常糟糕')" class="flex-1 p-4 rounded-2xl bg-red-50 hover:bg-red-100 transition-colors text-center">
+                                <span class="text-2xl">😢</span>
+                                <p class="text-xs text-red-600 mt-1">很糟</p>
+                            </button>
+                            <button onclick="submitCheckin(2, '不太好')" class="flex-1 p-4 rounded-2xl bg-orange-50 hover:bg-orange-100 transition-colors text-center">
+                                <span class="text-2xl">😔</span>
+                                <p class="text-xs text-orange-600 mt-1">不好</p>
+                            </button>
+                            <button onclick="submitCheckin(3, '一般')" class="flex-1 p-4 rounded-2xl bg-yellow-50 hover:bg-yellow-100 transition-colors text-center">
+                                <span class="text-2xl">😐</span>
+                                <p class="text-xs text-yellow-600 mt-1">一般</p>
+                            </button>
+                            <button onclick="submitCheckin(4, '不错')" class="flex-1 p-4 rounded-2xl bg-teal-50 hover:bg-teal-100 transition-colors text-center">
+                                <span class="text-2xl">🙂</span>
+                                <p class="text-xs text-teal-600 mt-1">不错</p>
+                            </button>
+                            <button onclick="submitCheckin(5, '很好')" class="flex-1 p-4 rounded-2xl bg-green-50 hover:bg-green-100 transition-colors text-center">
+                                <span class="text-2xl">😄</span>
+                                <p class="text-xs text-green-600 mt-1">很好</p>
+                            </button>
+                        </div>
+                        <textarea id="checkin-note" placeholder="今天发生了什么值得记录的事吗？（可选）" class="w-full mt-4 bg-slate-50 border-none rounded-2xl p-4 text-sm text-slate-600 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500 outline-none" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-8">
+                <div class="bg-white rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50">
+                    <div class="flex justify-between items-center mb-10">
+                        <h3 class="text-xl font-bold text-slate-800">抑郁分值趋势 (PHQ-9)</h3>
+                        <select class="text-xs bg-slate-50 border-none rounded-lg py-2 px-4 outline-none text-slate-500">
+                            <option>最近7次</option>
+                            <option>所有历史</option>
+                        </select>
+                    </div>
+                    <div class="h-[300px] w-full">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50">
+                    <h3 class="text-xl font-bold text-slate-800 mb-8">历史测评轨迹</h3>
+                    <div id="history-list" class="space-y-4">
+                        <div class="flex items-center justify-center py-10 text-slate-300 italic">
+                            正在加载您的情绪轨迹...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 1. 初始化图表
+        function initChart(labels, data) {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'PHQ-9 分数',
+                        data: data,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        borderWidth: 4,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#0d9488',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 27, grid: { color: '#f8fafc' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // 2. 从后端 API 获取真实数据
+        let allRecords = [];  // 保存历史记录数据
+        
+        // 加载统计数据
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                if (!res.ok) return;
+                const stats = await res.json();
+                
+                // 更新统计卡片
+                document.getElementById('total-detects').innerText = stats.total_assessments || 0;
+                document.getElementById('consecutive-days').innerText = (stats.consecutive_days || 0) + '天';
+                document.getElementById('mental-score').innerText = (stats.mental_score || '--') + '分';
+                
+                // 更新评分进度条
+                const scoreBar = document.getElementById('score-bar');
+                const score = stats.mental_score || 0;
+                scoreBar.style.width = score + '%';
+                
+                // 根据分数改变颜色
+                if (score >= 80) {
+                    scoreBar.className = 'shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500 transition-all duration-500';
+                } else if (score >= 60) {
+                    scoreBar.className = 'shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-teal-600 transition-all duration-500';
+                } else if (score >= 40) {
+                    scoreBar.className = 'shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-yellow-500 transition-all duration-500';
+                } else {
+                    scoreBar.className = 'shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-red-500 transition-all duration-500';
+                }
+                
+                // 绘制情绪趋势图
+                if (stats.recent_checkins && stats.recent_checkins.length > 0) {
+                    initMoodChart(stats.recent_checkins);
+                }
+                
+            } catch (e) {
+                console.error('加载统计数据失败', e);
+            }
+        }
+        
+        // 初始化情绪趋势图
+        function initMoodChart(data) {
+            const ctx = document.getElementById('moodChart').getContext('2d');
+            const labels = data.map(d => {
+                const date = new Date(d.date);
+                return (date.getMonth() + 1) + '/' + date.getDate();
+            });
+            const moods = data.map(d => d.mood);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '情绪指数',
+                        data: moods,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#0d9488',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        spanGaps: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            max: 5,
+                            ticks: { stepSize: 1 }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+        
+        async function fetchHistory() {
+            try {
+                // 对应 app.py 中的一个新路由，例如 /api/history
+                const res = await fetch('/api/history');
+                const history = await res.json();
+                allRecords = history;  // 保存数据供 viewDetail 使用
+                
+                if(history.length === 0) {
+                    document.getElementById('history-list').innerHTML = `<p class="text-center text-slate-400 py-10">暂无数据，快去完成第一次测评吧！</p>`;
+                    return;
+                }
+
+                // 更新统计数字
+                document.getElementById('total-detects').innerText = history.length;
+                const sum = history.reduce((a, b) => a + b.phq_score, 0);
+                document.getElementById('avg-score').innerText = (sum / history.length).toFixed(1);
+
+                // 准备图表数据
+                const labels = history.map(h => h.created_at.split(' ')[0]).reverse();
+                const scores = history.map(h => h.phq_score).reverse();
+                initChart(labels, scores);
+
+                // 渲染列表 - 添加点击事件
+                const listContainer = document.getElementById('history-list');
+                listContainer.innerHTML = history.map(item => `
+                    <div onclick="viewDetail(${item.id})" class="flex items-center justify-between p-6 hover:bg-slate-50 rounded-3xl transition-all cursor-pointer group border border-transparent hover:border-slate-100">
+                        <div class="flex items-center gap-6">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center font-bold ${getRiskColor(item.risk_level)}">
+                                ${item.phq_score}
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-700">${item.risk_level}风险状态</p>
+                                <p class="text-xs text-slate-400 mt-1">${item.created_at}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 text-teal-600 text-sm font-bold opacity-0 group-hover:opacity-100 transition-all">
+                            详细报告 
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                console.error("加载失败", e);
+            }
+        }
+
+        function getRiskColor(level) {
+            if(level === '低') return 'bg-green-50 text-green-600';
+            if(level === '中') return 'bg-orange-50 text-orange-600';
+            return 'bg-red-50 text-red-600';
+        }
+
+        function viewDetail(id) {
+            // 1. 从之前 fetch 到的 allRecords 数组中找到对应的那条记录
+            const record = allRecords.find(r => r.id === id);
+            if (!record) return;
+
+            // 2. 将数据库中的原始分还原为 report.html 识别的 10 分制雷达图数据
+            // 逻辑：(得分 / 满分) * 10
+            const processedRadarData = [
+                (record.phq_score / 27) * 10,       // 抑郁 (PHQ-9 满分 27)
+                ((record.anxiety_score || 0) / 21) * 10,  // 焦虑 (GAD-7 满分 21)
+                ((record.sleep_score || 0) / 12) * 10,    // 睡眠 (4题 满分 12)
+                ((record.pressure_score || 0) / 12) * 10, // 压力 (4题 满分 12)
+                ((record.social_score || 0) / 9) * 10,    // 社交 (3题 满分 9)
+                ((record.self_score || 0) / 9) * 10,      // 自我 (3题 满分 9)
+                (record.voice_label * 7 + 2)              // 语音风险映射 (0->2, 1->9)
+            ];
+
+            // 3. 构建 eval_result 对象，存入 localStorage
+            const eval_result = {
+                risk_level: record.risk_level,
+                radar_data: processedRadarData.map(val => parseFloat(val.toFixed(1))), // 保留1位小数
+                is_history: true // 标记这是回看历史
+            };
+
+            localStorage.setItem('eval_result', JSON.stringify(eval_result));
+
+            // 4. 跳转到报告页
+            window.location.href = '/report';
+        }
+
+        // 每日打卡功能
+        let hasCheckedIn = false;
+
+        async function loadCheckinStatus() {
+            try {
+                const res = await fetch('/api/checkin');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const today = new Date().toISOString().split('T')[0];
+                const todayRecord = data.find(r => r.created_at && r.created_at.startsWith(today));
+                
+                const statusDiv = document.getElementById('checkin-status');
+                const formDiv = document.getElementById('checkin-form');
+                
+                if (todayRecord) {
+                    hasCheckedIn = true;
+                    const moodEmojis = {1: '😢', 2: '😔', 3: '😐', 4: '🙂', 5: '😄'};
+                    const moodLabels = {1: '很糟', 2: '不好', 3: '一般', 4: '不错', 5: '很好'};
+                    statusDiv.innerHTML = `
+                        <div class="bg-teal-50 rounded-2xl p-6 text-center">
+                            <span class="text-4xl">${moodEmojis[todayRecord.mood_score] || '😐'}</span>
+                            <p class="text-teal-700 font-bold mt-2">今日已打卡: ${moodLabels[todayRecord.mood_score] || '一般'}</p>
+                            ${todayRecord.note ? `<p class="text-slate-500 text-sm mt-2">"${todayRecord.note}"</p>` : ''}
+                            <p class="text-slate-400 text-xs mt-3">明天再来打卡吧</p>
+                        </div>
+                    `;
+                    formDiv.style.display = 'none';
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="text-center py-2">
+                            <span class="text-amber-500">今日还未打卡</span>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error('加载打卡状态失败', e);
+            }
+        }
+
+        async function submitCheckin(score, label) {
+            try {
+                const note = document.getElementById('checkin-note').value;
+                const res = await fetch('/api/checkin', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({mood_score: score, mood_label: label, note: note})
+                });
+                if (res.ok) {
+                    alert('打卡成功！');
+                    loadCheckinStatus();
+                }
+            } catch (e) {
+                alert('打卡失败，请重试');
+            }
+        }
+
+        function exportData() {
+            window.location.href = '/api/export';
+        }
+
+        window.onload = function() {
+            fetchHistory();
+            loadCheckinStatus();
+            loadStats();
+        };
+    </script>
+</body>
+</html>

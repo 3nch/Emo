@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情绪垃圾桶 - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chat-container { height: calc(100vh - 220px); }
+        .bubble-ai { 
+            background: #f0fdfa; 
+            border-radius: 24px 24px 24px 4px; 
+            box-shadow: 0 4px 15px rgba(45, 149, 150, 0.05);
+        }
+        .bubble-user { 
+            background: #115e59; 
+            color: white; 
+            border-radius: 24px 24px 4px 24px; 
+            box-shadow: 0 10px 20px -5px rgba(17, 94, 89, 0.2);
+        }
+        /* 自定义滚动条 */
+        #chatBox::-webkit-scrollbar { width: 4px; }
+        #chatBox::-webkit-scrollbar-track { background: transparent; }
+        #chatBox::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <!-- SOS 紧急求助按钮 -->
+    <div class="fixed bottom-6 right-6 z-50">
+        <button onclick="showSOS()" class="w-14 h-14 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-red-200 transition-all hover:scale-110">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        </button>
+    </div>
+
+    <!-- SOS 弹窗 -->
+    <div id="sos-modal" class="fixed inset-0 bg-black/50 z-[60] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] p-8 max-w-sm w-full text-center shadow-2xl">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span class="text-3xl">🆘</span>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">需要帮助吗？</h3>
+            <p class="text-slate-500 text-sm mb-6">如果你正处于危机中，请寻求专业帮助。以下资源可以为你提供支持：</p>
+            <div class="space-y-3 text-left">
+                <a href="tel:400-161-9995" class="block p-4 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors">
+                    <div class="font-bold text-red-600">全国心理援助热线</div>
+                    <div class="text-red-500 text-sm">400-161-9995</div>
+                </a>
+                <a href="tel:010-8295-1332" class="block p-4 bg-teal-50 rounded-2xl hover:bg-teal-100 transition-colors">
+                    <div class="font-bold text-teal-600">北京心理危机研究与干预中心</div>
+                    <div class="text-teal-500 text-sm">010-8295-1332</div>
+                </a>
+            </div>
+            <button onclick="hideSOS()" class="mt-6 w-full py-3 text-slate-500 hover:text-slate-700">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        function showSOS() { document.getElementById('sos-modal').classList.remove('hidden'); document.getElementById('sos-modal').classList.add('flex'); }
+        function hideSOS() { document.getElementById('sos-modal').classList.add('hidden'); document.getElementById('sos-modal').classList.remove('flex'); }
+    </script>
+
+    <nav class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-200">
+                    <span class="text-xl">🌙</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-slate-800">心愈 AI</span>
+            </div>
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="hover:text-teal-600 transition-colors">抑郁症检测</a>
+                <a href="/soothe" class="text-teal-600 font-bold">情绪垃圾桶</a>
+                <a href="/articles" class="hover:text-teal-600 transition-colors">心理科普</a>
+                <a href="/community" class="hover:text-teal-600 transition-colors">互助社区</a>
+                <a href="/profile" class="hover:text-teal-600 transition-colors">个人中心</a>
+            </div>
+            <div onclick="window.location.href='/profile'" class="w-8 h-8 rounded-full bg-teal-100 border border-teal-200 overflow-hidden cursor-pointer hover:ring-2 ring-teal-500 transition-all">
+                {% if session.user_id %}
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ session.username }}" alt="avatar">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center text-teal-600 text-xs">游客</div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 pt-28 pb-10">
+        <div class="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-white">
+            <div class="p-8 border-b border-slate-50 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-2xl">🗑️</div>
+                    <div>
+                        <h1 class="text-xl font-bold text-slate-800">情绪垃圾桶</h1>
+                        <p class="text-slate-400 text-xs">此刻，我只是一个安静的倾听者。</p>
+                    </div>
+                </div>
+                <button onclick="clearChat()" class="text-slate-400 hover:text-red-400 transition-colors text-sm">清空对话</button>
+            </div>
+
+            <div id="chatBox" class="chat-container overflow-y-auto p-8 space-y-8">
+                <div class="flex gap-4">
+                    <div class="w-9 h-9 bg-teal-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white shadow-lg shadow-teal-100">AI</div>
+                    <div class="bubble-ai p-5 text-slate-700 text-sm leading-relaxed max-w-[85%]">
+                        你好。我是心愈。检测结果只是一个数字，如果你现在觉得压力大、委屈或者单纯想发呆，都可以告诉我。我会在这里一直陪着你。
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8 bg-white border-t border-slate-50">
+                <div class="relative flex items-center gap-3">
+                    <input id="userInput" type="text" 
+                           onkeypress="if(event.keyCode==13) sendMessage()"
+                           placeholder="输入你想说的话..." 
+                           class="flex-1 bg-slate-50 border-none rounded-2xl py-4 px-6 focus:ring-2 focus:ring-teal-500 outline-none text-slate-700 placeholder:text-slate-300">
+                    <button id="voiceBtn" onclick="toggleVoice()" class="bg-slate-200 text-slate-600 w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-slate-300 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </button>
+                    <button onclick="sendMessage()" class="bg-teal-700 text-white w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-teal-800 transition-all shadow-lg shadow-teal-100">
+                        <svg class="w-6 h-6 rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    </button>
+                </div>
+                <p id="voice-status" class="text-xs text-center text-slate-400 mt-2 hidden">点击麦克风开始语音输入</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const voiceStatus = document.getElementById('voice-status');
+        
+        // 语音识别功能
+        let recognition = null;
+        let isRecording = false;
+        
+        // 检查浏览器是否支持语音识别
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            
+            recognition.onstart = function() {
+                isRecording = true;
+                voiceBtn.classList.remove('bg-slate-200', 'text-slate-600');
+                voiceBtn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
+                voiceStatus.classList.remove('hidden');
+                voiceStatus.textContent = '正在录音...';
+            };
+            
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                userInput.value = transcript;
+                voiceStatus.textContent = '识别完成: ' + transcript;
+                // 自动发送消息
+                setTimeout(() => sendMessage(), 500);
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('语音识别错误:', event.error);
+                voiceStatus.textContent = '识别失败，请重试';
+                stopRecording();
+            };
+            
+            recognition.onend = function() {
+                stopRecording();
+            };
+        } else {
+            voiceStatus.classList.remove('hidden');
+            voiceStatus.textContent = '您的浏览器不支持语音识别功能';
+        }
+        
+        function toggleVoice() {
+            if (!recognition) {
+                alert('您的浏览器不支持语音识别功能，请使用 Chrome 浏览器');
+                return;
+            }
+            
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+        
+        function stopRecording() {
+            isRecording = false;
+            voiceBtn.classList.add('bg-slate-200', 'text-slate-600');
+            voiceBtn.classList.remove('bg-red-500', 'text-white', 'animate-pulse');
+            voiceStatus.classList.add('hidden');
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            // 1. 添加用户消息气泡
+            appendMessage('user', text);
+            userInput.value = '';
+
+            // 2. 显示“对方正在输入”状态
+            const typingId = appendTypingIndicator();
+
+            try {
+                // 3. 请求后端 API (对应 app.py 中的 /api/chat)
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                
+                // 4. 移除加载状态并添加 AI 回复
+                removeTypingIndicator(typingId);
+                appendMessage('ai', data.reply);
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                appendMessage('ai', "抱歉，我刚才走神了，能再说一遍吗？");
+            }
+        }
+
+        function appendMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `flex gap-4 ${role === 'user' ? 'flex-row-reverse' : ''}`;
+            
+            const avatar = role === 'ai' 
+                ? '<div class="w-9 h-9 bg-teal-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white shadow-lg shadow-teal-100">AI</div>'
+                : `<div class="w-9 h-9 bg-teal-200 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-teal-700 shadow-sm">我</div>`;
+
+            div.innerHTML = `
+                ${avatar}
+                <div class="${role === 'ai' ? 'bubble-ai' : 'bubble-user'} p-5 text-sm leading-relaxed max-w-[85%]">
+                    ${text}
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendTypingIndicator() {
+            const id = 'typing-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'flex gap-4';
+            div.innerHTML = `
+                <div class="w-9 h-9 bg-teal-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white shadow-lg">AI</div>
+                <div class="bubble-ai p-5 flex gap-1">
+                    <span class="w-1.5 h-1.5 bg-teal-400 rounded-full animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 bg-teal-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                    <span class="w-1.5 h-1.5 bg-teal-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return id;
+        }
+
+        function removeTypingIndicator(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function clearChat() {
+            chatBox.innerHTML = '';
+            appendMessage('ai', "对话已清空。如果你准备好了，我们可以重新开始。");
+        }
+    </script>
+</body>
+</html>

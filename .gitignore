@@ -1,0 +1,17 @@
+# 模型文件
+*.safetensors
+*.bin
+*.pt
+*.pth
+# 模型数据
+data/
+# 训练输出
+outputs/
+Qwen3/
+best_depression_model/
+qwen3-emotion-lora/
+emotion_qwen25_lora_1/
+
+# 缓存
+__pycache__/
+unsloth_compiled_cache/

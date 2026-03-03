@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ article.title }} - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Noto Sans SC', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <nav class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-200">
+                    <span class="text-xl">🌙</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-slate-800">心愈 AI</span>
+            </div>
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="hover:text-teal-600 transition-colors">抑郁症检测</a>
+                <a href="/soothe" class="hover:text-teal-600 transition-colors">情绪垃圾桶</a>
+                <a href="/articles" class="text-teal-600 font-bold border-b-2 border-teal-600 pb-1">心理科普</a>
+                <a href="/community" class="hover:text-teal-600 transition-colors">互助社区</a>
+                <a href="/profile" class="hover:text-teal-600 transition-colors">个人中心</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-3xl mx-auto px-6 pt-32 pb-16">
+        <button onclick="window.location.href='/articles'" class="flex items-center gap-2 text-teal-600 hover:text-teal-800 mb-8 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            返回文章列表
+        </button>
+
+        <article class="bg-white rounded-[3rem] p-10 shadow-xl shadow-slate-200/50">
+            <div class="mb-8">
+                {% set category_names = {'Depression': '抑郁', 'Anxiety': '焦虑', 'Sleep': '睡眠', 'Pressure': '压力', 'Social': '社交', 'Self': '自我成长'} %}
+                {% set category_colors = {'Depression': 'bg-purple-50 text-purple-600', 'Anxiety': 'bg-blue-50 text-blue-600', 'Sleep': 'bg-indigo-50 text-indigo-600', 'Pressure': 'bg-orange-50 text-orange-600', 'Social': 'bg-green-50 text-green-600', 'Self': 'bg-pink-50 text-pink-600'} %}
+                <span class="inline-block px-4 py-1 rounded-full text-sm font-medium {{ category_colors.get(article.category, 'bg-slate-100 text-slate-600') }}">
+                    {{ category_names.get(article.category, '科普') }}
+                </span>
+            </div>
+
+            <h1 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">{{ article.title }}</h1>
+
+            {% if article.summary %}
+            <p class="text-lg text-slate-500 mb-8 pb-8 border-b border-slate-100 italic">{{ article.summary }}</p>
+            {% endif %}
+
+            <div class="prose prose-lg max-w-none text-slate-700 leading-relaxed whitespace-pre-line">{{ article.content }}</div>
+        </article>
+
+        <!-- 推荐阅读 -->
+        <div class="mt-12">
+            <h3 class="text-xl font-bold text-slate-800 mb-6">推荐阅读</h3>
+            <div id="related-articles" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="animate-pulse text-slate-400">正在加载...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 加载推荐文章
+        async function loadRelated() {
+            try {
+                const res = await fetch('/api/articles');
+                const articles = await res.json();
+                // 随机显示3篇其他文章
+                const others = articles.filter(a => a.id !== {{ article.id }}).slice(0, 3);
+                const container = document.getElementById('related-articles');
+                
+                if (others.length === 0) {
+                    container.innerHTML = '<p class="text-slate-400">暂无推荐文章</p>';
+                    return;
+                }
+
+                const categoryNames = {
+                    'Depression': '抑郁', 'Anxiety': '焦虑', 'Sleep': '睡眠',
+                    'Pressure': '压力', 'Social': '社交', 'Self': '自我成长'
+                };
+
+                container.innerHTML = others.map(a => `
+                    <div onclick="window.location.href='/article/${a.id}'" 
+                         class="bg-white p-6 rounded-2xl shadow-sm hover:shadow-md cursor-pointer transition-all">
+                        <span class="text-xs text-slate-400">${categoryNames[a.category] || '科普'}</span>
+                        <h4 class="font-bold text-slate-700 mt-1 hover:text-teal-600">${a.title}</h4>
+                    </div>
+                `).join('');
+            } catch (e) {
+                document.getElementById('related-articles').innerHTML = '';
+            }
+        }
+        window.onload = loadRelated;
+    </script>
+</body>
+</html>

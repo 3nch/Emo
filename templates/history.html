@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>检测档案 - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Noto Sans SC', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <nav class="bg-white border-b border-slate-100 px-6 py-5 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+                <div class="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center text-white text-sm">🌙</div>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">检测档案</h1>
+            </div>
+            <button onclick="location.href='/'" class="text-teal-600 font-bold text-sm hover:underline">返回首页</button>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto p-6 mt-4">
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-slate-800">历史测评记录</h2>
+            <p class="text-slate-500 text-sm mt-1">系统为您保留了最近所有的心理画像数据</p>
+        </div>
+
+        <div id="history-list" class="space-y-4">
+            <div class="animate-pulse space-y-4">
+                <div class="h-32 bg-slate-200 rounded-[2rem] w-full"></div>
+                <div class="h-32 bg-slate-200 rounded-[2rem] w-full"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let allRecords = [];
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                allRecords = await res.json();
+                const list = document.getElementById('history-list');
+
+                if (allRecords.length === 0) {
+                    list.innerHTML = `
+                        <div class="text-center py-24 bg-white rounded-[3rem] shadow-sm border border-slate-100">
+                            <div class="text-6xl mb-6">📂</div>
+                            <p class="text-slate-400 font-medium">还没有任何检测记录</p>
+                            <button onclick="location.href='/detect'" class="mt-6 bg-teal-600 text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-teal-100">开启首次检测</button>
+                        </div>`;
+                    return;
+                }
+
+                list.innerHTML = allRecords.map(r => {
+                    const colorClass = r.risk_level === '高风险' ? 'bg-red-50 text-red-500' : 
+                                     r.risk_level === '中等风险' ? 'bg-orange-50 text-orange-500' : 'bg-teal-50 text-teal-600';
+                    
+                    return `
+                        <div class="bg-white p-7 rounded-[2.5rem] shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-xl hover:border-teal-100 transition-all duration-300">
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${colorClass}">
+                                        ${r.risk_level}
+                                    </span>
+                                    <span class="text-slate-400 text-xs font-medium">${r.created_at}</span>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-800">
+                                    抑郁指数: ${Math.round(r.phq_score)} <span class="text-slate-300 font-light mx-2">|</span> 焦虑指数: ${Math.round(r.anxiety_score || 0)}
+                                </h3>
+                                <div class="flex items-center gap-2 text-sm ${r.voice_label === 1 ? 'text-amber-600' : 'text-slate-500'}">
+                                    <span>语音AI判别：${r.voice_label === 1 ? '识别到情绪波动特征' : '未见明显异常'}</span>
+                                </div>
+                            </div>
+                            <button onclick="viewDetail(${r.id})" class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 group-hover:bg-teal-600 group-hover:text-white transition-all shadow-sm group-hover:shadow-teal-200">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("加载历史记录失败:", e);
+                document.getElementById('history-list').innerHTML = `<p class="text-red-400 text-center">数据加载失败，请检查后端服务。</p>`;
+            }
+        }
+
+        function viewDetail(id) {
+            const record = allRecords.find(r => r.id === id);
+            if (!record) return;
+
+            // 构造 report.html 需要的 10 分制归一化数据
+            const eval_result = {
+                risk_level: record.risk_level,
+                radar_data: [
+                    (record.phq_score / 27) * 10,
+                    ((record.anxiety_score || 0) / 21) * 10,
+                    ((record.sleep_score || 0) / 12) * 10,
+                    ((record.pressure_score || 0) / 12) * 10,
+                    ((record.social_score || 0) / 9) * 10,
+                    ((record.self_score || 0) / 9) * 10,
+                    (record.voice_label * 7 + 2)
+                ]
+            };
+
+            localStorage.setItem('eval_result', JSON.stringify(eval_result));
+            window.location.href = '/report';
+        }
+
+        window.onload = loadHistory;
+    </script>
+</body>
+</html>

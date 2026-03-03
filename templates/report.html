@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>评估报告 - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body class="bg-white py-16 px-6">
+
+    <nav class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-200">
+                    <span class="text-xl">🌙</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-slate-800">心愈 AI</span>
+            </div>
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="hover:text-teal-600 transition-colors">抑郁症检测</a>
+                <a href="/soothe" class="hover:text-teal-600 transition-colors">情绪垃圾桶</a>
+                <a href="/articles" class="hover:text-teal-600 transition-colors">心理科普</a>
+                <a href="/community" class="hover:text-teal-600 transition-colors">互助社区</a>
+                <a href="/profile" class="hover:text-teal-600 transition-colors">个人中心</a>
+            </div>
+            <div onclick="window.location.href='/profile'" class="w-9 h-9 rounded-full bg-teal-100 border border-teal-200 overflow-hidden cursor-pointer hover:ring-2 ring-teal-500 transition-all">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ session.username }}" alt="avatar">
+            </div>
+        </div>
+    </nav>
+
+    <div class="pt-24"></div>
+
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12">
+        <div id="main" class="w-full h-[500px] flex-1"></div>
+
+        <div class="flex-1 space-y-6">
+            <div class="flex items-center gap-2">
+                <span class="w-8 h-1 bg-teal-600 rounded-full"></span>
+                <span class="text-teal-600 font-bold text-sm tracking-widest uppercase">Assessment Report</span>
+            </div>
+            
+            <h1 class="text-4xl font-bold text-slate-900 leading-tight">
+                检测结论: <span id="risk-text" class="text-teal-600">计算中...</span>
+            </h1>
+
+            <p class="text-gray-500 leading-relaxed text-lg">
+                基于 <b>PHQ-9 抑郁</b>、<b>GAD-7 焦虑</b>、<b>睡眠质量</b>、<b>压力感知</b>、<b>社交压力</b>及<b>自我认同</b>六大维度的交叉分析，结合 <b>AI 语音情绪识别</b> 算法，我们为您生成了这份全方位的心理画像。
+            </p>
+
+            <div class="grid grid-cols-2 gap-4 my-6">
+                <div class="p-4 bg-slate-50 rounded-2xl border-b-2 border-teal-100">
+                    <p class="text-xs text-slate-400 mb-1">主要压力源</p>
+                    <p id="top-stressor" class="font-bold text-slate-700">数据分析中...</p>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-2xl border-b-2 border-teal-100">
+                    <p class="text-xs text-slate-400 mb-1">语音情绪信心值</p>
+                    <p id="voice-conf" class="font-bold text-slate-700">实时匹配中</p>
+                </div>
+            </div>
+
+            <div class="p-6 bg-teal-50/50 rounded-3xl border-l-4 border-teal-600 text-slate-600 italic">
+                “您的每一个细微情绪，都值得被温柔对待。如果您感到疲惫，可以前往情绪垃圾桶进行语音倾诉。”
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="window.location.href='/soothe'" class="flex-1 bg-teal-700 text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-teal-100 hover:bg-teal-800 transition-all active:scale-95">
+                    前往情绪垃圾桶
+                </button>
+                <button onclick="window.location.href='/detect'" class="px-8 py-4 rounded-2xl font-bold text-teal-700 border-2 border-teal-100 hover:bg-teal-50 transition-all">
+                    重新测试
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 获取后端传回的数据
+        // 期望格式: {radar_data: [dep, anx, sle, pre, soc, self, voice], risk_level: '...'}
+        const data = JSON.parse(localStorage.getItem('eval_result')) || {
+            radar_data: [5, 5, 5, 5, 5, 5, 5], 
+            risk_level: '数据读取失败'
+        };
+
+        document.getElementById('risk-text').innerText = data.risk_level;
+
+        // 简易逻辑：找出得分最高的维度（除语音外）作为压力源
+        const indicators_names = ['抑郁倾向', '焦虑水平', '睡眠质量', '压力感知', '社交压力', '自我认同'];
+        const scores_only = data.radar_data.slice(0, 6);
+        const maxIndex = scores_only.indexOf(Math.max(...scores_only));
+        document.getElementById('top-stressor').innerText = indicators_names[maxIndex];
+
+        // 2. 初始化 ECharts
+        const chart = echarts.init(document.getElementById('main'));
+        
+        const option = {
+            color: ['#2D9596'],
+            tooltip: { show: true },
+            radar: {
+                indicator: [
+                    { name: '抑郁指征', max: 10 },
+                    { name: '焦虑水平', max: 10 },
+                    { name: '睡眠指数', max: 10 },
+                    { name: '压力感知', max: 10 },
+                    { name: '社交压力', max: 10 },
+                    { name: '自我认同', max: 10 },
+                    { name: '语音情绪', max: 10 }
+                ],
+                shape: 'circle',
+                radius: '65%',
+                axisName: {
+                    color: '#64748b',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    padding: [3, 10]
+                },
+                splitLine: {
+                    lineStyle: {
+                        color: ['rgba(45,149,150,0.2)', 'rgba(45,149,150,0.1)'],
+                        width: 1
+                    }
+                },
+                splitArea: { show: false },
+                axisLine: {
+                    lineStyle: { color: 'rgba(45,149,150,0.1)' }
+                }
+            },
+            series: [{
+                type: 'radar',
+                data: [{
+                    value: data.radar_data,
+                    name: '心理特征分布',
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    areaStyle: {
+                        color: new echarts.graphic.RadialGradient(0.5, 0.5, 1, [
+                            { color: 'rgba(45, 149, 150, 0.6)', offset: 0 },
+                            { color: 'rgba(45, 149, 150, 0.1)', offset: 1 }
+                        ])
+                    },
+                    lineStyle: { width: 4, color: '#2D9596' },
+                    itemStyle: { color: '#2D9596', borderWidth: 2, borderColor: '#fff' }
+                }]
+            }]
+        };
+
+        chart.setOption(option);
+
+        // 窗口缩放自适应
+        window.onresize = chart.resize;
+    </script>
+</body>
+</html>

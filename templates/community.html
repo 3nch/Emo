@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社区互助 - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Noto Sans SC', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <nav class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-200">
+                    <span class="text-xl">🌙</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-slate-800">心愈 AI</span>
+            </div>
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="hover:text-teal-600 transition-colors">抑郁症检测</a>
+                <a href="/soothe" class="hover:text-teal-600 transition-colors">情绪垃圾桶</a>
+                <a href="/articles" class="hover:text-teal-600 transition-colors">心理科普</a>
+                <a href="/community" class="text-teal-600 font-bold border-b-2 border-teal-600 pb-1">互助社区</a>
+                <a href="/profile" class="hover:text-teal-600 transition-colors">个人中心</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-6 pt-32 pb-16">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800 mb-2">互助社区</h1>
+            <p class="text-slate-500">在这里，你可以分享心情，互相支持</p>
+        </div>
+
+        <!-- 发布帖子 -->
+        <div class="bg-white rounded-[2.5rem] p-8 shadow-lg shadow-slate-200/50 mb-8">
+            <textarea id="post-content" placeholder="今天有什么想分享的吗？" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-slate-700 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500 outline-none" rows="3"></textarea>
+            
+            <div class="flex items-center justify-between mt-4">
+                <div class="flex gap-2">
+                    <button onclick="selectMood('开心')" class="mood-btn px-3 py-1 rounded-full bg-yellow-50 text-yellow-600 text-sm hover:bg-yellow-100" data-mood="开心">开心</button>
+                    <button onclick="selectMood('难过')" class="mood-btn px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-sm hover:bg-blue-100" data-mood="难过">难过</button>
+                    <button onclick="selectMood('焦虑')" class="mood-btn px-3 py-1 rounded-full bg-purple-50 text-purple-600 text-sm hover:bg-purple-100" data-mood="焦虑">焦虑</button>
+                    <button onclick="selectMood('平静')" class="mood-btn px-3 py-1 rounded-full bg-green-50 text-green-600 text-sm hover:bg-green-100" data-mood="平静">平静</button>
+                    <button onclick="selectMood('感恩')" class="mood-btn px-3 py-1 rounded-full bg-pink-50 text-pink-600 text-sm hover:bg-pink-100" data-mood="感恩">感恩</button>
+                </div>
+                <button onclick="submitPost()" class="bg-teal-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-teal-700 transition-all">发布</button>
+            </div>
+        </div>
+
+        <!-- 帖子列表 -->
+        <div id="posts-list" class="space-y-6">
+            <div class="text-center py-10 text-slate-400">正在加载...</div>
+        </div>
+    </main>
+
+    <script>
+        let selectedMood = '';
+        
+        function selectMood(mood) {
+            selectedMood = mood;
+            document.querySelectorAll('.mood-btn').forEach(btn => {
+                if (btn.dataset.mood === mood) {
+                    btn.classList.add('ring-2', 'ring-teal-500');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-teal-500');
+                }
+            });
+        }
+        
+        async function submitPost() {
+            const content = document.getElementById('post-content').value.trim();
+            if (!content) {
+                alert('请输入内容');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/posts', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({content: content, mood_tag: selectedMood})
+                });
+                
+                if (res.status === 401) {
+                    alert('请先登录');
+                    return;
+                }
+                
+                document.getElementById('post-content').value = '';
+                selectedMood = '';
+                document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-teal-500'));
+                loadPosts();
+            } catch (e) {
+                alert('发布失败');
+            }
+        }
+        
+        async function loadPosts() {
+            try {
+                const res = await fetch('/api/posts');
+                const posts = await res.json();
+                const container = document.getElementById('posts-list');
+                
+                if (posts.length === 0) {
+                    container.innerHTML = '<div class="text-center py-10 text-slate-400">暂无帖子，快来发布第一条吧！</div>';
+                    return;
+                }
+                
+                const moodColors = {
+                    '开心': 'bg-yellow-50 text-yellow-600',
+                    '难过': 'bg-blue-50 text-blue-600',
+                    '焦虑': 'bg-purple-50 text-purple-600',
+                    '平静': 'bg-green-50 text-green-600',
+                    '感恩': 'bg-pink-50 text-pink-600'
+                };
+                
+                container.innerHTML = posts.map(p => `
+                    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 font-bold">
+                                    ${p.anonymous_name ? p.anonymous_name.charAt(0) : '匿名'}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-slate-700">${p.anonymous_name || '匿名用户'}</p>
+                                    <p class="text-xs text-slate-400">${new Date(p.created_at).toLocaleString('zh-CN')}</p>
+                                </div>
+                            </div>
+                            ${p.mood_tag ? `<span class="px-3 py-1 rounded-full text-xs font-medium ${moodColors[p.mood_tag] || 'bg-slate-100 text-slate-600'}">${p.mood_tag}</span>` : ''}
+                        </div>
+                        <p class="text-slate-600 mb-4 whitespace-pre-line">${p.content}</p>
+                        <div class="flex items-center gap-4">
+                            <button onclick="toggleLike(${p.id})" class="flex items-center gap-1 text-sm ${p.liked ? 'text-red-500' : 'text-slate-400 hover:text-red-500'}">
+                                <svg class="w-5 h-5" fill="${p.liked ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                                <span id="likes-${p.id}">${p.like_count || 0}</span>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                document.getElementById('posts-list').innerHTML = '<div class="text-center py-10 text-red-400">加载失败</div>';
+            }
+        }
+        
+        async function toggleLike(postId) {
+            try {
+                const res = await fetch(`/api/posts/${postId}/like`, {method: 'POST'});
+                const data = await res.json();
+                
+                if (res.status === 401) {
+                    alert('请先登录');
+                    return;
+                }
+                
+                document.getElementById(`likes-${postId}`).innerText = data.likes;
+                loadPosts();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        window.onload = loadPosts;
+    </script>
+</body>
+</html>
