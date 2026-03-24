@@ -5,9 +5,11 @@ def build_prompt(
     emotion: str,
     risk_level: str,
     decision: dict,
+    history: list = None,
 ) -> str:
     """
     将 pipeline 决策结果转成最终喂给 Qwen3 的 Prompt
+    history: 对话历史列表，每项为 {'role': 'user'/'assistant', 'content': '...'}
     """
 
     # ===== 1. System Role =====
@@ -54,7 +56,16 @@ def build_prompt(
         f"【用户原始输入】\n{user_text}"
     )
 
-    # ===== 7. Final Prompt =====
+    # ===== 7. 构建最终 Prompt（包含历史对话）=====
+    # 历史对话格式
+    history_text = ""
+    if history and len(history) > 0:
+        history_text = "【对话历史】\n"
+        for h in history[-6:]:  # 保留最近6轮对话
+            role = "用户" if h.get('role') == 'user' else "助手"
+            history_text += f"{role}：{h.get('content', '')}\n"
+        history_text += "\n"
+
     final_prompt = f"""
 {system_role}
 
@@ -64,6 +75,8 @@ def build_prompt(
 {constraints_text}
 
 {actions_text}
+
+{history_text}
 
 {user_context}
 

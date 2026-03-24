@@ -28,7 +28,12 @@ class DialoguePipeline:
     def __init__(self):
         self.graph_reasoner = GraphReasoner()
 
-    def run(self, user_text: str) -> str:
+    def run(self, user_text: str, history: list = None) -> str:
+        """
+        运行对话管道
+        user_text: 用户当前输入
+        history: 对话历史列表，每项为 {'role': 'user'/'assistant', 'content': '...'}
+        """
         emotion_result = detect_emotion(user_text)
         print(emotion_result)
         aLL_dicts = detect_safety_signal(user_text, emotion_result)
@@ -55,12 +60,13 @@ class DialoguePipeline:
         else:
             decision = self.graph_reasoner.force("P_LOW_RISK")
 
-        # ⭐ 关键一步：构造 Prompt
+        # ⭐ 关键一步：构造 Prompt（传入历史对话）
         prompt = build_prompt(
             user_text=user_text,
             emotion=state["emotion"],
             risk_level=state["risk_level"],
             decision=decision,
+            history=history,
         )
         print(prompt)
         
@@ -68,7 +74,7 @@ class DialoguePipeline:
         response = main(prompt)
         #response = generate_response(prompt)
 
-        return response
+        return response, emotion_result
 
 if __name__ == "__main__":
     dialogue1 = DialoguePipeline()
@@ -80,6 +86,6 @@ if __name__ == "__main__":
             print("👋 对话结束")
             break
 
-        reply = dialogue1.run(user_input)
+        reply, _emotion = dialogue1.run(user_input)
         print(f"🤖 助手：{reply}")
 

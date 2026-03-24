@@ -11,15 +11,57 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2ForSequenceClassification
 from functools import wraps
 
+# 导入配置和日志
+from config import Config
+from utils.logger import logger, log_user_action, log_api_request, log_error, log_model_inference
+
 # 导入情绪安抚pipeline
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'pipeline'))
 from pipeline.dialogue_pipeline import DialoguePipeline
 
 app = Flask(__name__)
-app.secret_key = 'emo_secret_key_123' # 在实际生产中应使用更复杂的密钥
+app.secret_key = Config.SECRET_KEY
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# 记录应用启动日志
+logger.info("心愈 AI 应用启动")
+logger.info(f"数据库路径: {Config.DATABASE_PATH}")
+logger.info(f"日志级别: {Config.LOG_LEVEL}")
+
+# --- 错误处理页面 ---
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('error.html', error_code=404, error_title="页面未找到", error_message="抱歉，您访问的页面不存在或已被移除。"), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('error.html', error_code=500, error_title="服务器错误", error_message="抱歉，服务器遇到了一个问题，请稍后再试。"), 500
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('error.html', error_code=403, error_title="访问被拒绝", error_message="抱歉，您没有权限访问此页面。"), 403
+
+@app.errorhandler(400)
+def bad_request(e):
+    return render_template('error.html', error_code=400, error_title="请求无效", error_message="抱歉，您的请求格式有误，请检查后重试。"), 400
+
+@app.errorhandler(429)
+def rate_limit_exceeded(e):
+    return render_template('error.html', error_code=429, error_title="请求过于频繁", error_message="抱歉，您的请求过于频繁，请稍后再试。"), 429
+
+# --- 全局API错误处理装饰器 ---
+@app.after_request
+def add_error_handling_headers(response):
+    """为API响应添加错误处理支持"""
+    # 标记是否为API请求
+    if request.path.startswith('/api/'):
+        # 如果响应状态码表示错误，添加错误类型标记
+        if response.status_code >= 400:
+            # 在响应数据中嵌入友好错误信息
+            pass
+    return response
 
 # --- 认证装饰器 ---
 def login_required(f):
@@ -71,12 +113,14 @@ voice_analyzer = DepressionVoiceModel()
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
+    print("[DB] 开始初始化数据库...")
     conn = get_db_connection()
+    conn.execute("PRAGMA busy_timeout = 5000")
     try:
         # 1. 创建用户表
         conn.execute('''
@@ -244,9 +288,175 @@ def init_db():
             )
         ''')
         
+        # 10. 创建帖子评论表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS post_comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL,
+                user_id INTEGER,
+                anonymous_name TEXT,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 11. 创建对话历史表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS dialogue_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                message TEXT NOT NULL,
+                emotion_label TEXT,
+                danger_level TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 12. 创建书籍推荐表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS books (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                author TEXT,
+                category TEXT,
+                description TEXT,
+                cover_url TEXT,
+                buy_link TEXT,
+                is_featured BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 初始化示例书籍
+        cursor = conn.execute('SELECT COUNT(*) FROM books')
+        book_count = cursor.fetchone()[0]
+        
+        if book_count == 0:
+            sample_books = [
+                ("活出生命的意义", "维克多·弗兰克尔", "自我成长", 
+                 "著名心理学家弗兰克尔在纳粹集中营的经历与思考，探讨人类如何在苦难中找到生命的意义。",
+                 "https://img.badgen.net/book/9787535487553", "https://example.com/book1", 1),
+                ("伯恩斯新情绪疗法", "戴维·伯恩斯", "抑郁", 
+                 "一本实用的认知行为疗法指南，帮助读者识别和改变负面思维模式。",
+                 "https://img.badgen.net/book/9787559513317", "https://example.com/book2", 1),
+                ("正念：此刻是一枝花", "乔·卡巴金", "压力", 
+                 "介绍正念减压疗法，通过冥想和觉察减轻压力和焦虑。",
+                 "https://img.badgen.net/book/9787508669391", "https://example.com/book3", 0),
+                ("我们时代的神经症人格", "卡伦·霍妮", "焦虑", 
+                 "经典心理学著作，深入分析现代人的焦虑根源和应对方式。",
+                 "https://img.badgen.net/book/9787511740012", "https://example.com/book4", 0),
+                ("少有人走的路", "M·斯科特·派克", "自我成长", 
+                 "关于心智成熟的旅程，探讨自律、爱和成长的真谛。",
+                 "https://img.badgen.net/book/9787111523303", "https://example.com/book5", 1),
+                ("情绪的力量", "特拉维斯·斯塔布里克", "情绪管理", 
+                 "科学解读情绪的本质，教你如何利用情绪提升生活质量。",
+                 "https://img.badgen.net/book/9787521723450", "https://example.com/book6", 0),
+            ]
+            conn.executemany('''
+                INSERT INTO books (title, author, category, description, cover_url, buy_link, is_featured)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', sample_books)
+            print(f"书籍数据初始化完成！共 {len(sample_books)} 本书。")
+        
+        # 13. 创建语音采集句子表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS voice_sentences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL,
+                difficulty TEXT DEFAULT 'medium',
+                category TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 初始化示例句子
+        cursor = conn.execute('SELECT COUNT(*) FROM voice_sentences')
+        sentence_count = cursor.fetchone()[0]
+        
+        if sentence_count == 0:
+            sample_sentences = [
+                ("今天天气真好，阳光照在身上暖暖的。", "easy", "日常"),
+                ("我喜欢在公园里散步，感受大自然的美好。", "easy", "日常"),
+                ("周末，我和朋友们一起去看了一场电影，非常开心。", "medium", "日常"),
+                ("生活中总会有一些困难，但我们要勇敢面对。", "medium", "励志"),
+                ("感谢生命中遇到的每一个人，每一段经历都让我成长。", "medium", "感恩"),
+                ("面对挑战时，保持积极的心态是非常重要的。", "hard", "励志"),
+                ("我希望通过自己的努力，能够帮助更多的人。", "hard", "励志"),
+                ("在忙碌的生活中，我们也要学会停下来，倾听内心的声音。", "hard", "感悟"),
+            ]
+            conn.executemany('''
+                INSERT INTO voice_sentences (content, difficulty, category) VALUES (?, ?, ?)
+            ''', sample_sentences)
+            print(f"语音采集句子初始化完成！共 {len(sample_sentences)} 句。")
+        
+        # 14. 创建语音采集问题表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS voice_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL,
+                expected_duration INTEGER DEFAULT 30,
+                category TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 初始化示例问题
+        cursor = conn.execute('SELECT COUNT(*) FROM voice_questions')
+        question_count = cursor.fetchone()[0]
+        
+        if question_count == 0:
+            sample_questions = [
+                ("请描述一下你最近的心情？", 30, "情绪"),
+                ("有什么事情让你感到压力很大吗？", 45, "压力"),
+                ("你通常是如何放松自己的？", 30, "调节"),
+                ("最近有没有什么让你感到开心的事情？", 30, "情绪"),
+                ("当你感到焦虑时，你会怎么做？", 45, "调节"),
+            ]
+            conn.executemany('''
+                INSERT INTO voice_questions (content, expected_duration, category) VALUES (?, ?, ?)
+            ''', sample_questions)
+            print(f"语音采集问题初始化完成！共 {len(sample_questions)} 个问题。")
+        
+        # 15. 创建语音记录表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS voice_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                module_type TEXT NOT NULL,
+                file_path TEXT,
+                transcription TEXT,
+                emotion_result TEXT,
+                duration INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 添加索引以提升查询性能（使用OR IGNORE避免重复创建报错）
+        try:
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_records_user_id ON records(user_id)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_records_created_at ON records(created_at)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_daily_checkin_user_id ON daily_checkin(user_id)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_daily_checkin_created_at ON daily_checkin(created_at)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_post_comments_post_id ON post_comments(post_id)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_dialogue_user_id ON dialogue_history(user_id)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_dialogue_conversation_id ON dialogue_history(conversation_id)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_dialogue_user_emotion_label ON dialogue_history(user_id, emotion_label)')
+            print("[DB] 数据库索引创建完成")
+        except Exception as e:
+            print(f"[DB] 索引创建跳过: {e}")
+
         conn.commit()
     finally:
         conn.close()
+
+# --- 简单的健康检查端点 ---
+@app.route('/api/health')
+def health_check():
+    return jsonify({"status": "ok", "time": datetime.now().isoformat()})
 
 # 在启动前初始化
 init_db()
@@ -267,7 +477,8 @@ def login():
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
-            return redirect(url_for('index'))
+            # 登录成功，跳转到首页并传递登录成功参数
+            return redirect(url_for('index', login_success='true'))
         flash('用户名或密码错误')
     return render_template('login.html')
 
@@ -281,17 +492,26 @@ def register():
         if password != confirm_password:
             flash('两次输入的密码不一致')
             return render_template('register.html')
-            
+        
+        # 输入验证
+        if not username or len(username) < 3 or len(username) > 20:
+            flash('用户名需要3-20个字符')
+            return render_template('register.html')
+        if not password or len(password) < 6:
+            flash('密码至少需要6个字符')
+            return render_template('register.html')
+        
         hashed_password = generate_password_hash(password)
         conn = get_db_connection()
         try:
             conn.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
             conn.commit()
+            log_user_action('register', username=username)
             return redirect(url_for('login'))
         except sqlite3.IntegrityError:
             flash('用户名已存在')
         except Exception as e:
-            print(f"Registration Error: {e}")
+            log_error(e, context=f"register|username={username}")
             flash('注册失败，请稍后再试')
         finally:
             conn.close()
@@ -355,6 +575,201 @@ def get_article(article_id):
         return jsonify(dict(article))
     return jsonify({"error": "文章不存在"}), 404
 
+@app.route('/api/articles/recommend')
+def get_recommended_articles():
+    """
+    根据用户测评结果推荐相关文章
+    category: 主要问题类别（Depression, Anxiety, Sleep, Pressure, Social, Self）
+    """
+    category = request.args.get('category', '')
+    limit = int(request.args.get('limit', 3))
+
+    conn = get_db_connection()
+
+    # 如果有指定分类，优先返回该分类的文章
+    if category:
+        articles = conn.execute(
+            'SELECT id, title, category, summary FROM articles WHERE category = ? LIMIT ?',
+            (category, limit)
+        ).fetchall()
+
+        # 如果该分类文章不足3篇，补充其他分类
+        if len(articles) < limit:
+            others = conn.execute(
+                'SELECT id, title, category, summary FROM articles WHERE category != ? LIMIT ?',
+                (category, limit - len(articles))
+            ).fetchall()
+            articles = list(articles) + list(others)
+    else:
+        # 无分类时返回最新文章
+        articles = conn.execute(
+            'SELECT id, title, category, summary FROM articles ORDER BY id DESC LIMIT ?',
+            (limit,)
+        ).fetchall()
+
+    conn.close()
+    return jsonify([dict(a) for a in articles])
+
+# --- 书籍推荐页面 ---
+@app.route('/books')
+def books():
+    """书籍推荐页面"""
+    return render_template('books.html')
+
+@app.route('/api/books')
+def get_books():
+    """获取书籍列表"""
+    category = request.args.get('category')
+    featured = request.args.get('featured')
+    
+    conn = get_db_connection()
+    
+    query = 'SELECT * FROM books WHERE 1=1'
+    params = []
+    
+    if category:
+        query += ' AND category = ?'
+        params.append(category)
+    
+    if featured == 'true':
+        query += ' AND is_featured = 1'
+    
+    query += ' ORDER BY is_featured DESC, created_at DESC'
+    
+    books = conn.execute(query, params).fetchall()
+    conn.close()
+    
+    return jsonify([dict(b) for b in books])
+
+@app.route('/api/books/categories')
+def get_book_categories():
+    """获取书籍分类列表"""
+    conn = get_db_connection()
+    categories = conn.execute('SELECT DISTINCT category FROM books WHERE category IS NOT NULL').fetchall()
+    conn.close()
+    return jsonify([c['category'] for c in categories])
+
+# --- 语音采集页面 ---
+@app.route('/voice')
+def voice_collect():
+    """语音采集页面"""
+    return render_template('voice_collect.html')
+
+@app.route('/api/voice/sentences')
+def get_voice_sentences():
+    """获取随机朗读句子"""
+    count = int(request.args.get('count', 5))
+    
+    conn = get_db_connection()
+    sentences = conn.execute('''
+        SELECT * FROM voice_sentences 
+        ORDER BY RANDOM() 
+        LIMIT ?
+    ''', (count,)).fetchall()
+    conn.close()
+    
+    return jsonify([dict(s) for s in sentences])
+
+@app.route('/api/voice/questions')
+def get_voice_questions():
+    """获取问答问题"""
+    conn = get_db_connection()
+    questions = conn.execute('SELECT * FROM voice_questions ORDER BY id').fetchall()
+    conn.close()
+    return jsonify([dict(q) for q in questions])
+
+@app.route('/api/voice/upload', methods=['POST'])
+def upload_voice():
+    """上传录音文件"""
+    try:
+        user_id = session.get('user_id')
+        
+        if 'file' not in request.files:
+            return jsonify({"error": "没有文件"}), 400
+        
+        file = request.files['file']
+        module_type = request.form.get('module_type', 'reading')
+        duration = int(request.form.get('duration', 0))
+        
+        if file.filename == '':
+            return jsonify({"error": "文件名为空"}), 400
+        
+        # 保存文件
+        import uuid
+        filename = f"{uuid.uuid4().hex}.webm"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
+        
+        # 简单模拟情绪分析结果
+        emotion_result = {
+            "emotion": "平静",
+            "confidence": 0.85,
+            "stress_level": "low"
+        }
+        
+        # 保存记录到数据库
+        conn = get_db_connection()
+        cursor = conn.execute('''
+            INSERT INTO voice_records (user_id, module_type, file_path, duration, emotion_result)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, module_type, filepath, duration, json.dumps(emotion_result)))
+        conn.commit()
+        record_id = cursor.lastrowid
+        conn.close()
+        
+        log_user_action('voice_upload', username=session.get('username'), details=f"type={module_type}")
+        
+        return jsonify({
+            "success": True,
+            "record_id": record_id,
+            "result": emotion_result
+        })
+    except Exception as e:
+        log_error(e, context="upload_voice")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/voice/result', methods=['POST'])
+def get_voice_result():
+    """综合语音和量表结果"""
+    try:
+        data = request.get_json()
+        scale_score = data.get('scale_score', 0)  # 量表分数 0-27
+        voice_results = data.get('voice_results', [])
+        
+        # 融合算法：量表 60% + 语音 40%
+        voice_avg = 0
+        if voice_results:
+            # 简单计算平均情绪分数
+            voice_avg = sum([r.get('confidence', 0.5) for r in voice_results]) / len(voice_results)
+        
+        # 将语音置信度转换为抑郁分数（反向，置信度高表示情绪正常）
+        voice_score = (1 - voice_avg) * 27  # 转换为 0-27 分数
+        
+        # 综合分数
+        final_score = int(scale_score * 0.6 + voice_score * 0.4)
+        
+        # 风险评估
+        if final_score < 5:
+            risk_level = "低"
+            risk_color = "green"
+        elif final_score < 10:
+            risk_level = "中"
+            risk_color = "yellow"
+        else:
+            risk_level = "高"
+            risk_color = "red"
+        
+        return jsonify({
+            "final_score": final_score,
+            "scale_score": scale_score,
+            "voice_score": int(voice_score),
+            "risk_level": risk_level,
+            "risk_color": risk_color
+        })
+    except Exception as e:
+        log_error(e, context="get_voice_result")
+        return jsonify({"error": str(e)}), 500
+
 # --- 社区页面 ---
 @app.route('/community')
 def community():
@@ -391,17 +806,41 @@ def get_posts():
             return jsonify({"error": str(e)}), 500
     
     else:
-        # 获取帖子列表
+        # 获取帖子列表（支持分页）
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 10))
+        offset = (page - 1) * page_size
+
         conn = get_db_connection()
+
+        # 获取总数
+        total_count = conn.execute('SELECT COUNT(*) FROM posts').fetchone()[0]
+
+        # 获取当前页数据
         posts = conn.execute('''
-            SELECT p.*, 
+            SELECT p.*,
                    (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as like_count,
+                   (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) as comment_count,
                    CASE WHEN ? > 0 AND (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id AND user_id = ?) > 0 THEN 1 ELSE 0 END as liked
-            FROM posts p 
+            FROM posts p
             ORDER BY p.created_at DESC
-        ''', (session.get('user_id', 0), session.get('user_id', 0))).fetchall()
+            LIMIT ? OFFSET ?
+        ''', (session.get('user_id', 0), session.get('user_id', 0), page_size, offset)).fetchall()
+
         conn.close()
-        return jsonify([dict(p) for p in posts])
+
+        # 返回分页数据和元信息
+        return jsonify({
+            'posts': [dict(p) for p in posts],
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total_count': total_count,
+                'total_pages': (total_count + page_size - 1) // page_size,
+                'has_next': page * page_size < total_count,
+                'has_prev': page > 1
+            }
+        })
 
 @app.route('/api/posts/<int:post_id>/like', methods=['POST'])
 def like_post(post_id):
@@ -434,6 +873,98 @@ def like_post(post_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- 社区评论 API ---
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
+def get_comments(post_id):
+    """获取帖子的评论列表"""
+    try:
+        conn = get_db_connection()
+        comments = conn.execute('''
+            SELECT c.*, 
+                   (SELECT COUNT(*) FROM post_comments WHERE post_id = c.post_id) as comment_count
+            FROM post_comments c
+            WHERE c.post_id = ?
+            ORDER BY c.created_at ASC
+        ''', (post_id,)).fetchall()
+        conn.close()
+        return jsonify([dict(c) for c in comments])
+    except Exception as e:
+        log_error(e, context=f"get_comments|post_id={post_id}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def add_comment(post_id):
+    """添加评论"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({"error": "请先登录"}), 401
+        
+        data = request.get_json()
+        content = data.get('content', '').strip()
+        
+        if not content:
+            return jsonify({"error": "评论内容不能为空"}), 400
+        
+        if len(content) > 500:
+            return jsonify({"error": "评论内容不能超过500字"}), 400
+        
+        user_id = session['user_id']
+        username = session.get('username', '匿名用户')
+        
+        conn = get_db_connection()
+        # 检查帖子是否存在
+        post = conn.execute('SELECT id FROM posts WHERE id = ?', (post_id,)).fetchone()
+        if not post:
+            conn.close()
+            return jsonify({"error": "帖子不存在"}), 404
+        
+        cursor = conn.execute('''
+            INSERT INTO post_comments (post_id, user_id, anonymous_name, content)
+            VALUES (?, ?, ?, ?)
+        ''', (post_id, user_id, username, content))
+        conn.commit()
+        
+        # 获取刚插入的评论
+        comment = conn.execute('SELECT * FROM post_comments WHERE id = ?', (cursor.lastrowid,)).fetchone()
+        conn.close()
+        
+        log_user_action('add_comment', username=username, details=f"post_id={post_id}")
+        return jsonify({"success": True, "comment": dict(comment)})
+    except Exception as e:
+        log_error(e, context="add_comment")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
+def delete_comment(comment_id):
+    """删除评论"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({"error": "请先登录"}), 401
+        
+        user_id = session['user_id']
+        
+        conn = get_db_connection()
+        # 检查评论是否存在且属于当前用户
+        comment = conn.execute('SELECT * FROM post_comments WHERE id = ?', (comment_id,)).fetchone()
+        
+        if not comment:
+            conn.close()
+            return jsonify({"error": "评论不存在"}), 404
+        
+        if comment['user_id'] != user_id:
+            conn.close()
+            return jsonify({"error": "无权删除此评论"}), 403
+        
+        conn.execute('DELETE FROM post_comments WHERE id = ?', (comment_id,))
+        conn.commit()
+        conn.close()
+        
+        log_user_action('delete_comment', username=session.get('username'), details=f"comment_id={comment_id}")
+        return jsonify({"success": True})
+    except Exception as e:
+        log_error(e, context=f"delete_comment|comment_id={comment_id}")
+        return jsonify({"error": str(e)}), 500
+
 # --- 4. 核心 API 接口 ---
 @app.route('/api/questions')
 def get_questions():
@@ -447,6 +978,9 @@ def submit_assessment():
     try:
         user_answers = json.loads(request.form.get('answers', '{}'))
         audio_file = request.files.get('audio')
+        
+        # 获取当前用户ID（如果已登录）
+        user_id = session.get('user_id')
         
         v_label = 0
         v_conf = 0.0
@@ -483,13 +1017,14 @@ def submit_assessment():
         else:
             risk = "低风险"
 
-        # 存入数据库 (注意：确保你的 records 表有对应的字段)
+        # 存入数据库（包含 user_id 以关联用户）
         conn.execute('''
             INSERT INTO records (
-                phq_score, anxiety_score, sleep_score, pressure_score, 
-                social_score, self_score, risk_level, voice_label
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                user_id, phq_score, anxiety_score, sleep_score, pressure_score, 
+                social_score, self_score, risk_level, voice_label, voice_confidence
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
+            user_id,
             scores["Depression"], 
             scores["Anxiety"], 
             scores["Sleep"], 
@@ -497,7 +1032,8 @@ def submit_assessment():
             scores["Social"],
             scores["Self"],
             risk, 
-            v_label
+            v_label,
+            v_conf
         ))
         conn.commit()
         conn.close()
@@ -514,10 +1050,22 @@ def submit_assessment():
             round((v_label * 7 + 2), 1)                 # 语音风险映射
         ]
 
+        # 计算主要问题类别（得分最高的维度）
+        category_scores = {
+            "Depression": scores["Depression"],
+            "Anxiety": scores["Anxiety"],
+            "Sleep": scores["Sleep"],
+            "Pressure": scores["Pressure"],
+            "Social": scores["Social"],
+            "Self": scores["Self"]
+        }
+        highest_category = max(category_scores, key=category_scores.get)
+
         return jsonify({
             "risk_level": risk,
             "radar_data": radar_data,
-            "scores": scores # 将原始分数也传回前端，方便详细显示
+            "scores": scores, # 将原始分数也传回前端，方便详细显示
+            "highest_category": highest_category  # 主要问题类别
         })
     except Exception as e:
         print(f"Submit Error: {e}")
@@ -527,12 +1075,23 @@ def submit_assessment():
 @app.route('/api/history')
 def get_history():
     try:
+        user_id = session.get('user_id')
         conn = get_db_connection()
-        # 按时间倒序排列，最新的在前
-        records = conn.execute('SELECT * FROM records ORDER BY created_at DESC').fetchall()
+
+        # 如果已登录，只获取当前用户的历史记录
+        if user_id:
+            records = conn.execute(
+                'SELECT * FROM records WHERE user_id = ? ORDER BY created_at DESC LIMIT 100',
+                (user_id,)
+            ).fetchall()
+        else:
+            # 未登录时返回空列表
+            records = []
+
         conn.close()
         return jsonify([dict(r) for r in records])
     except Exception as e:
+        print(f"History Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 # --- 每日打卡 API ---
@@ -575,27 +1134,95 @@ def checkin():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+# --- 打卡数据导出 API ---
+@app.route('/api/checkin/export')
+def export_checkin():
+    """导出用户的打卡数据为 CSV 格式"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "请先登录"}), 401
+        
+        conn = get_db_connection()
+        records = conn.execute('''
+            SELECT created_at as 日期, mood_score as 情绪分数, mood_label as 情绪标签, note as 笔记
+            FROM daily_checkin
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        ''', (user_id,)).fetchall()
+        conn.close()
+        
+        if not records:
+            return jsonify({"error": "暂无打卡记录"}), 404
+        
+        # 生成 CSV 内容
+        import csv
+        import io
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # 写入表头
+        writer.writerow(['日期', '情绪分数', '情绪标签', '笔记'])
+        
+        # 写入数据
+        for record in records:
+            writer.writerow([
+                record['日期'],
+                record['情绪分数'],
+                record['情绪标签'],
+                record['笔记'] or ''
+            ])
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        # 返回 CSV 文件
+        from flask import Response
+        response = Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=checkin_export_{datetime.now().strftime("%Y%m%d")}.csv'
+            }
+        )
+        return response
+    except Exception as e:
+        log_error(e, context="export_checkin")
+        return jsonify({"error": str(e)}), 500
+
 # --- 获取用户统计数据 API ---
 @app.route('/api/stats')
 def get_stats():
+    print("[API] /api/stats 被调用")
     user_id = session.get('user_id')
+    print(f"[API] user_id = {user_id}")
+
     if not user_id:
+        print("[API] 用户未登录，返回401")
         return jsonify({"error": "请先登录"}), 401
-    
+
     try:
+        print(f"[Stats] 正在获取用户 {user_id} 的统计数据...")
+
+        # 设置更短的超时
         conn = get_db_connection()
-        
-        # 1. 获取测评记录统计
+        conn.execute("PRAGMA query_only = OFF")
+        conn.execute("PRAGMA busy_timeout = 5000")
+
+        # 1. 获取测评记录统计（限制最近200条）
         records = conn.execute(
-            'SELECT * FROM records WHERE user_id = ? ORDER BY created_at DESC',
+            'SELECT * FROM records WHERE user_id = ? ORDER BY created_at DESC LIMIT 200',
             (user_id,)
         ).fetchall()
-        
-        # 2. 获取打卡记录
+        print(f"[Stats] 测评记录数: {len(records)}")
+
+        # 2. 获取打卡记录（限制最近100条）
         checkins = conn.execute(
-            'SELECT * FROM daily_checkin WHERE user_id = ? ORDER BY created_at DESC',
+            'SELECT * FROM daily_checkin WHERE user_id = ? ORDER BY created_at DESC LIMIT 100',
             (user_id,)
         ).fetchall()
+        print(f"[Stats] 打卡记录数: {len(checkins)}")
         
         # 3. 计算统计数据
         total_assessments = len(records)
@@ -604,7 +1231,17 @@ def get_stats():
         # 计算连续打卡天数
         consecutive_days = 0
         if checkins:
-            checkin_dates = [c['created_at'] for c in checkins]
+            # 提取日期部分（只取日期，不要时间），统一格式
+            checkin_dates = set()
+            for c in checkins:
+                created_at = c['created_at']
+                # 如果是完整时间格式，提取日期部分
+                if isinstance(created_at, str) and ' ' in created_at:
+                    date_part = created_at.split(' ')[0]
+                else:
+                    date_part = str(created_at)
+                checkin_dates.add(date_part)
+            
             today = datetime.now().date()
             for i in range(30):
                 check_date = (today - timedelta(days=i)).isoformat()
@@ -627,7 +1264,17 @@ def get_stats():
         recent_checkins = []
         for i in range(6, -1, -1):
             date = (datetime.now() - timedelta(days=i)).date().isoformat()
-            checkin = next((c for c in checkins if c['created_at'] == date), None)
+            # 统一日期格式进行比较
+            checkin = None
+            for c in checkins:
+                created_at = c['created_at']
+                if isinstance(created_at, str) and ' ' in created_at:
+                    checkin_date = created_at.split(' ')[0]
+                else:
+                    checkin_date = str(created_at)
+                if checkin_date == date:
+                    checkin = c
+                    break
             recent_checkins.append({
                 'date': date,
                 'mood': checkin['mood_score'] if checkin else None
@@ -718,27 +1365,199 @@ def chat():
     """
     情绪垃圾桶聊天接口
     接收用户文本，调用dialogue_pipeline进行情绪分析并生成安抚回复
+    支持对话上下文记忆（通过 session 保存历史）
     """
     try:
         data = request.get_json()
         user_text = data.get('text', '').strip()
+        conversation_id = data.get('conversation_id', 'default')
         
         if not user_text:
             return jsonify({'reply': '我在这里倾听你，请告诉我你的想法。'}), 400
         
-        # 调用情绪安抚pipeline
-        pipeline = get_dialogue_pipeline()
-        reply = pipeline.run(user_text)
+        # 获取对话历史（从 session 中）
+        chat_history = session.get('chat_history', [])
         
-        return jsonify({'reply': reply})
+        # 调用情绪安抚pipeline，传入历史对话
+        pipeline = get_dialogue_pipeline()
+        try:
+            result, emotion_result = pipeline.run(user_text, history=chat_history)
+            reply = result if isinstance(result, str) else str(result)
+            emotion_label = emotion_result.get('emotion', '平静')
+            # 将 risk_level 映射为 danger_level
+            risk_map = {'emergency': '极高', '高': '高', '中': '中', '低': '低'}
+            danger_level = risk_map.get(emotion_result.get('risk_level', '低'), '低')
+        except Exception as pipeline_err:
+            logger.error(f"Pipeline运行异常: {pipeline_err}")
+            reply = '我在这里陪伴你，如果有任何不适，请寻求专业帮助。'
+            emotion_label = '平静'
+            danger_level = '低'
+        
+        # 更新对话历史
+        chat_history.append({'role': 'user', 'content': user_text})
+        chat_history.append({'role': 'assistant', 'content': reply})
+        
+        # 只保留最近10轮对话（20条记录）
+        if len(chat_history) > 20:
+            chat_history = chat_history[-20:]
+        
+        session['chat_history'] = chat_history
+        
+        # 保存到数据库
+        user_id = session.get('user_id')
+        if user_id:
+            try:
+                conn = get_db_connection()
+                # 保存用户消息
+                conn.execute('''
+                    INSERT INTO dialogue_history (user_id, conversation_id, role, message, emotion_label, danger_level)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (user_id, conversation_id, 'user', user_text, emotion_label, danger_level))
+                # 保存AI回复（AI消息不做情绪标注）
+                conn.execute('''
+                    INSERT INTO dialogue_history (user_id, conversation_id, role, message, emotion_label, danger_level)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (user_id, conversation_id, 'assistant', reply, None, None))
+                conn.commit()
+                conn.close()
+            except Exception as db_error:
+                print(f"保存对话历史失败: {db_error}")
+        
+        return jsonify({
+            'reply': reply,
+            'emotion_label': emotion_label,
+            'danger_level': danger_level,
+            'conversation_id': conversation_id
+        })
     except Exception as e:
         print(f"Chat Error: {e}")
         # 发生错误时返回友好的安抚消息
-        return jsonify({'reply': '我在这里陪伴你，如果有任何不适，请寻求专业帮助。'}), 200
+        return jsonify({
+            'reply': '我在这里陪伴你，如果有任何不适，请寻求专业帮助。',
+            'emotion_label': '平静',
+            'danger_level': '低'
+        }), 200
+
+# --- 对话历史 API ---
+@app.route('/api/dialogue/history')
+def get_dialogue_history():
+    """获取对话历史"""
+    try:
+        conversation_id = request.args.get('conversation_id', 'default')
+        
+        conn = get_db_connection()
+        
+        # 尝试按会话ID获取，如果用户未登录则返回空
+        if 'user_id' in session:
+            history = conn.execute('''
+                SELECT * FROM dialogue_history
+                WHERE user_id = ? AND conversation_id = ?
+                ORDER BY created_at ASC
+            ''', (session['user_id'], conversation_id)).fetchall()
+            conn.close()
+            return jsonify([dict(h) for h in history])
+        else:
+            conn.close()
+            return jsonify([])
+    except Exception as e:
+        log_error(e, context="get_dialogue_history")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/dialogue/conversations')
+def get_conversations():
+    """获取用户的所有对话会话列表"""
+    try:
+        if 'user_id' not in session:
+            return jsonify([])
+        
+        conn = get_db_connection()
+        # 获取用户的所有会话，按最新消息时间排序
+        conversations = conn.execute('''
+            SELECT conversation_id,
+                   MAX(created_at) as last_message_time,
+                   COUNT(*) as message_count
+            FROM dialogue_history
+            WHERE user_id = ?
+            GROUP BY conversation_id
+            ORDER BY last_message_time DESC
+            LIMIT 50
+        ''', (session['user_id'],)).fetchall()
+        conn.close()
+        
+        return jsonify([dict(c) for c in conversations])
+    except Exception as e:
+        log_error(e, context="get_conversations")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/dialogue/conversations', methods=['POST'])
+def create_conversation():
+    """创建新对话会话"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({"error": "请先登录"}), 401
+        
+        import uuid
+        conversation_id = str(uuid.uuid4())[:8]
+        
+        return jsonify({"success": True, "conversation_id": conversation_id})
+    except Exception as e:
+        log_error(e, context="create_conversation")
+        return jsonify({"error": str(e)}), 500
+
+# --- 情绪统计接口 ---
+@app.route('/api/emotion-stats')
+@login_required
+def emotion_stats():
+    """统计当前用户对话历史中各情绪标签出现次数"""
+    try:
+        user_id = session['user_id']
+        conn = get_db_connection()
+        rows = conn.execute('''
+            SELECT emotion_label, COUNT(*) as count
+            FROM dialogue_history
+            WHERE user_id = ? AND role = 'user' AND emotion_label IS NOT NULL
+            GROUP BY emotion_label
+            ORDER BY count DESC
+        ''', (user_id,)).fetchall()
+        conn.close()
+        stats = [{'emotion': row['emotion_label'], 'count': row['count']} for row in rows]
+        return jsonify({'stats': stats})
+    except Exception as e:
+        log_error(e, context='emotion_stats')
+        return jsonify({'stats': []}), 500
+
+@app.route('/api/dialogue/clear', methods=['POST'])
+def clear_dialogue():
+    """清空当前会话的对话历史"""
+    try:
+        data = request.get_json() or {}
+        conversation_id = data.get('conversation_id', 'default')
+        
+        if 'user_id' in session:
+            conn = get_db_connection()
+            conn.execute('''
+                DELETE FROM dialogue_history
+                WHERE user_id = ? AND conversation_id = ?
+            ''', (session['user_id'], conversation_id))
+            conn.commit()
+            conn.close()
+        
+        # 同时清空session中的chat_history
+        session.pop('chat_history', None)
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        log_error(e, context="clear_dialogue")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
-        
+
+    # 启用多线程模式以避免请求阻塞
+    # 添加超时设置：请求超时为60秒
+    import socket
+    socket.setdefaulttimeout(60)
+
     # 保持 use_reloader=False 避免 CUDA 模型重复加载
-    app.run(port=5000, debug=True, use_reloader=False, threaded=False)
+    app.run(port=5000, debug=True, use_reloader=False, threaded=True)

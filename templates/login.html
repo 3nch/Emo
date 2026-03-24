@@ -51,10 +51,31 @@
             </form>
 
             <p class="text-center mt-8 text-slate-500 text-sm">
-                还没有账号？ 
+                还没有账号？
                 <a href="/register" class="text-teal-600 font-bold hover:underline">立即注册</a>
             </p>
         </div>
     </div>
+
+    <!-- 全局错误处理与通知系统 -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+
+    <script>
+        // 登录成功后的回调处理
+        {% if session.get('user_id') %}
+        // 保存用户ID到sessionStorage，用于通知系统
+        sessionStorage.setItem('user_id', '{{ session.get("user_id") }}');
+        // 显示欢迎回来提示
+        setTimeout(() => {
+            notificationSystem.success('欢迎回来，{{ session.get("username") }}！');
+        }, 500);
+        {% endif %}
+
+        // 检查是否有登录成功跳转回来的参数
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('login_success') === 'true') {
+            sessionStorage.setItem('user_id', urlParams.get('user_id') || '{{ session.get("user_id") }}');
+        }
+    </script>
 </body>
 </html>

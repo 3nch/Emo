@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}心愈 AI{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}bg-white text-slate-800{% endblock %}">
+    {% block nav %}
+    <nav class="fixed top-0 w-full z-50 glass-nav border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-200">
+                    <span class="text-xl">🌙</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-slate-800">心愈 AI</span>
+            </div>
+
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="{% if request.endpoint == 'index' %}text-teal-600 font-bold border-b-2 border-teal-600 pb-1{% else %}hover:text-teal-600 transition-colors{% endif %}">抑郁症检测</a>
+                <a href="/soothe" class="{% if request.endpoint == 'soothe' %}text-teal-600 font-bold border-b-2 border-teal-600 pb-1{% else %}hover:text-teal-600 transition-colors{% endif %}">情绪垃圾桶</a>
+                <a href="/articles" class="{% if request.endpoint == 'articles' %}text-teal-600 font-bold border-b-2 border-teal-600 pb-1{% else %}hover:text-teal-600 transition-colors{% endif %}">心理科普</a>
+                <a href="/community" class="{% if request.endpoint == 'community' %}text-teal-600 font-bold border-b-2 border-teal-600 pb-1{% else %}hover:text-teal-600 transition-colors{% endif %}">互助社区</a>
+                <a href="/profile" class="{% if request.endpoint in ['profile', 'history'] %}text-teal-600 font-bold border-b-2 border-teal-600 pb-1{% else %}hover:text-teal-600 transition-colors{% endif %}">个人中心</a>
+            </div>
+
+            <div class="flex items-center gap-4">
+                {% if session.get('user_id') %}
+                <span class="text-sm font-medium text-slate-600">你好, {{ session.username }}</span>
+                <a href="/logout" class="text-sm text-slate-400 hover:text-red-500 transition-colors">退出</a>
+                <div onclick="window.location.href='/profile'" class="w-9 h-9 rounded-full bg-teal-100 border border-teal-200 overflow-hidden cursor-pointer hover:ring-2 ring-teal-500 transition-all">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ session.username }}" alt="avatar">
+                </div>
+                {% else %}
+                <a href="/login" class="text-sm font-bold text-slate-600 hover:text-teal-600 transition-colors">登录</a>
+                <a href="/register" class="bg-teal-600 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-teal-700 transition-all shadow-md shadow-teal-100">注册</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    {% endblock %}
+
+    {% block content %}{% endblock %}
+
+    {% block footer %}{% endblock %}
+
+    {% block scripts %}
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    {% endblock %}
+</body>
+</html>

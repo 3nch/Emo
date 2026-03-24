@@ -119,5 +119,15 @@
 
         window.onload = loadArticles;
     </script>
+
+    <!-- 全局错误处理与通知系统 -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+
+    <script>
+        // 用户登录后保存用户ID到sessionStorage
+        {% if session.get('user_id') %}
+        sessionStorage.setItem('user_id', '{{ session.get("user_id") }}');
+        {% endif %}
+    </script>
 </body>
 </html>
