@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心理书籍推荐 - 心愈 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Noto Sans SC', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <nav class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-200">
+                    <span class="text-xl">🌙</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-slate-800">心愈 AI</span>
+            </div>
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-gray-500">
+                <a href="/" class="hover:text-teal-600 transition-colors">抑郁症检测</a>
+                <a href="/soothe" class="hover:text-teal-600 transition-colors">情绪垃圾桶</a>
+                <a href="/articles" class="hover:text-teal-600 transition-colors">心理科普</a>
+                <a href="/community" class="hover:text-teal-600 transition-colors">互助社区</a>
+                <a href="/profile" class="hover:text-teal-600 transition-colors">个人中心</a>
+                <a href="/books" class="text-teal-600 font-bold border-b-2 border-teal-600 pb-1">书籍推荐</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-6 pt-32 pb-16">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-slate-800 mb-4">心理健康书籍推荐</h1>
+            <p class="text-slate-500 text-lg max-w-2xl mx-auto">
+                阅读是心灵的良药。我们精选了多本关于心理健康、自我成长的书籍，帮助你更好地理解和管理情绪。
+            </p>
+        </div>
+
+        <!-- 分类筛选 -->
+        <div class="flex flex-wrap justify-center gap-3 mb-10">
+            <button onclick="filterBooks('all')" class="filter-btn active px-5 py-2 rounded-full bg-teal-600 text-white text-sm font-medium transition-all" data-category="all">
+                全部书籍
+            </button>
+            <button onclick="filterBooks('抑郁')" class="filter-btn px-5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium hover:bg-teal-50 hover:text-teal-600 transition-all" data-category="抑郁">
+                抑郁
+            </button>
+            <button onclick="filterBooks('焦虑')" class="filter-btn px-5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium hover:bg-teal-50 hover:text-teal-600 transition-all" data-category="焦虑">
+                焦虑
+            </button>
+            <button onclick="filterBooks('压力')" class="filter-btn px-5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium hover:bg-teal-50 hover:text-teal-600 transition-all" data-category="压力">
+                压力
+            </button>
+            <button onclick="filterBooks('自我成长')" class="filter-btn px-5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium hover:bg-teal-50 hover:text-teal-600 transition-all" data-category="自我成长">
+                自我成长
+            </button>
+            <button onclick="filterBooks('情绪管理')" class="filter-btn px-5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium hover:bg-teal-50 hover:text-teal-600 transition-all" data-category="情绪管理">
+                情绪管理
+            </button>
+        </div>
+
+        <!-- 书籍列表 -->
+        <div id="books-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="col-span-full text-center py-20">
+                <div class="animate-spin w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p class="text-slate-400">加载中...</p>
+            </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div id="empty-state" class="hidden text-center py-20">
+            <div class="text-6xl mb-4">📚</div>
+            <h3 class="text-xl font-bold text-slate-700 mb-2">暂无相关书籍</h3>
+            <p class="text-slate-400">我们正在准备更多优质内容</p>
+        </div>
+    </main>
+
+    <!-- 书籍详情弹窗 -->
+    <div id="book-modal" class="fixed inset-0 bg-black/50 z-[60] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <button onclick="closeBookModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            
+            <div class="flex gap-6 mb-6">
+                <div id="modal-cover" class="w-32 h-44 bg-slate-100 rounded-xl flex items-center justify-center text-4xl flex-shrink-0 overflow-hidden">
+                    📖
+                </div>
+                <div class="flex-1">
+                    <h2 id="modal-title" class="text-xl font-bold text-slate-800 mb-2">书名</h2>
+                    <p id="modal-author" class="text-slate-500 mb-2">作者</p>
+                    <span id="modal-category" class="inline-block px-3 py-1 bg-teal-50 text-teal-600 rounded-full text-xs font-medium">分类</span>
+                </div>
+            </div>
+            
+            <p id="modal-description" class="text-slate-600 leading-relaxed mb-6">
+                书籍描述...
+            </p>
+            
+            <a id="modal-link" href="#" target="_blank" class="block w-full py-3 bg-teal-600 text-white text-center rounded-xl font-bold hover:bg-teal-700 transition-colors">
+                查看详情
+            </a>
+        </div>
+    </div>
+
+    <!-- 全局错误处理与通知系统 -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+
+    <script>
+        let allBooks = [];
+        let currentCategory = 'all';
+
+        async function loadBooks() {
+            try {
+                const res = await fetch('/api/books');
+                allBooks = await res.json();
+                renderBooks(allBooks);
+            } catch (e) {
+                console.error('加载书籍失败', e);
+                document.getElementById('books-container').innerHTML = `
+                    <div class="col-span-full text-center py-20">
+                        <div class="text-4xl mb-4">😢</div>
+                        <p class="text-slate-400">加载失败，请刷新重试</p>
+                    </div>
+                `;
+            }
+        }
+
+        function filterBooks(category) {
+            currentCategory = category;
+            
+            // 更新按钮样式
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.category === category) {
+                    btn.classList.add('bg-teal-600', 'text-white');
+                    btn.classList.remove('bg-slate-100', 'text-slate-600');
+                } else {
+                    btn.classList.remove('bg-teal-600', 'text-white');
+                    btn.classList.add('bg-slate-100', 'text-slate-600');
+                }
+            });
+
+            // 筛选并渲染
+            if (category === 'all') {
+                renderBooks(allBooks);
+            } else {
+                const filtered = allBooks.filter(b => b.category === category);
+                renderBooks(filtered);
+            }
+        }
+
+        function renderBooks(books) {
+            const container = document.getElementById('books-container');
+            const emptyState = document.getElementById('empty-state');
+
+            if (books.length === 0) {
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            container.innerHTML = books.map(book => `
+                <div class="bg-white rounded-[2rem] p-6 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer" onclick="showBookModal(${book.id})">
+                    <div class="flex gap-4 mb-4">
+                        <div class="w-20 h-28 bg-gradient-to-br from-teal-100 to-teal-50 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">
+                            📚
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-bold text-slate-800 mb-1 truncate">${escapeHtml(book.title)}</h3>
+                            <p class="text-sm text-slate-400 mb-2">${escapeHtml(book.author || '未知作者')}</p>
+                            <span class="inline-block px-2 py-1 bg-teal-50 text-teal-600 rounded-lg text-xs font-medium">
+                                ${book.category || '通用'}
+                            </span>
+                            ${book.is_featured ? '<span class="inline-block ml-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-lg text-xs font-medium">推荐</span>' : ''}
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-500 line-clamp-3 leading-relaxed">${escapeHtml(book.description || '暂无描述')}</p>
+                </div>
+            `).join('');
+        }
+
+        function showBookModal(bookId) {
+            const book = allBooks.find(b => b.id === bookId);
+            if (!book) return;
+
+            document.getElementById('modal-title').textContent = book.title;
+            document.getElementById('modal-author').textContent = book.author || '未知作者';
+            document.getElementById('modal-category').textContent = book.category || '通用';
+            document.getElementById('modal-description').textContent = book.description || '暂无描述';
+            
+            const link = document.getElementById('modal-link');
+            if (book.buy_link) {
+                link.href = book.buy_link;
+                link.textContent = '查看详情';
+                link.style.display = 'block';
+            } else {
+                link.style.display = 'none';
+            }
+
+            document.getElementById('book-modal').classList.remove('hidden');
+            document.getElementById('book-modal').classList.add('flex');
+        }
+
+        function closeBookModal() {
+            document.getElementById('book-modal').classList.add('hidden');
+            document.getElementById('book-modal').classList.remove('flex');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('book-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeBookModal();
+            }
+        });
+
+        // 页面加载
+        loadBooks();
+    </script>
+</body>
+</html>

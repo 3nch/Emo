@@ -22,6 +22,34 @@
         #chatBox::-webkit-scrollbar { width: 4px; }
         #chatBox::-webkit-scrollbar-track { background: transparent; }
         #chatBox::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        /* 情绪标签样式 */
+        .emotion-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 4px;
+        }
+        .emotion-calm { background: #d1fae5; color: #065f46; }
+        .emotion-low { background: #dbeafe; color: #1e40af; }
+        .emotion-anxious { background: #ede9fe; color: #5b21b6; }
+        .emotion-stressed { background: #fef3c7; color: #92400e; }
+        .emotion-self-blame { background: #fce7f3; color: #9d174d; }
+        .emotion-angry { background: #fee2e2; color: #991b1b; }
+        /* 会话列表样式 */
+        .conversation-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .conversation-item:hover {
+            background: #f8fafc;
+        }
+        .conversation-item.active {
+            background: #f0fdfa;
+            border-left: 3px solid #0d9488;
+        }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -85,42 +113,75 @@
         </div>
     </nav>
 
-    <main class="max-w-4xl mx-auto px-4 pt-28 pb-10">
-        <div class="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-white">
-            <div class="p-8 border-b border-slate-50 flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-2xl">🗑️</div>
-                    <div>
-                        <h1 class="text-xl font-bold text-slate-800">情绪垃圾桶</h1>
-                        <p class="text-slate-400 text-xs">此刻，我只是一个安静的倾听者。</p>
-                    </div>
-                </div>
-                <button onclick="clearChat()" class="text-slate-400 hover:text-red-400 transition-colors text-sm">清空对话</button>
-            </div>
-
-            <div id="chatBox" class="chat-container overflow-y-auto p-8 space-y-8">
-                <div class="flex gap-4">
-                    <div class="w-9 h-9 bg-teal-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white shadow-lg shadow-teal-100">AI</div>
-                    <div class="bubble-ai p-5 text-slate-700 text-sm leading-relaxed max-w-[85%]">
-                        你好。我是心愈。检测结果只是一个数字，如果你现在觉得压力大、委屈或者单纯想发呆，都可以告诉我。我会在这里一直陪着你。
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-8 bg-white border-t border-slate-50">
-                <div class="relative flex items-center gap-3">
-                    <input id="userInput" type="text" 
-                           onkeypress="if(event.keyCode==13) sendMessage()"
-                           placeholder="输入你想说的话..." 
-                           class="flex-1 bg-slate-50 border-none rounded-2xl py-4 px-6 focus:ring-2 focus:ring-teal-500 outline-none text-slate-700 placeholder:text-slate-300">
-                    <button id="voiceBtn" onclick="toggleVoice()" class="bg-slate-200 text-slate-600 w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-slate-300 transition-all">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
-                    </button>
-                    <button onclick="sendMessage()" class="bg-teal-700 text-white w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-teal-800 transition-all shadow-lg shadow-teal-100">
-                        <svg class="w-6 h-6 rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+    <main class="max-w-6xl mx-auto px-4 pt-28 pb-10">
+        <div class="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-white flex">
+            <!-- 左侧会话列表 -->
+            <div id="sidebar" class="w-64 border-r border-slate-100 flex-shrink-0 hidden md:block">
+                <div class="p-4 border-b border-slate-100">
+                    <button onclick="startNewConversation()" class="w-full py-2 px-4 bg-teal-50 text-teal-600 rounded-xl text-sm font-bold hover:bg-teal-100 transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        新对话
                     </button>
                 </div>
-                <p id="voice-status" class="text-xs text-center text-slate-400 mt-2 hidden">点击麦克风开始语音输入</p>
+                <div id="conversation-list" class="overflow-y-auto max-h-[calc(100vh-440px)]">
+                    <!-- 会话列表会动态生成 -->
+                    <div class="conversation-item active" onclick="switchConversation('default')">
+                        <div class="text-sm font-medium text-slate-700 truncate">当前对话</div>
+                        <div class="text-xs text-slate-400">点击开始聊天</div>
+                    </div>
+                </div>
+                <!-- 情绪统计小板块 -->
+                <div id="emotion-stats-panel" class="p-4 border-t border-slate-100 mt-auto">
+                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">本次情绪统计</div>
+                    <div id="emotion-stats-list" class="space-y-2">
+                        <div class="text-xs text-slate-300 text-center py-2">暂无数据</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧聊天区域 -->
+            <div class="flex-1">
+                <div class="p-8 border-b border-slate-50 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-400 hover:text-teal-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        </button>
+                        <div class="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-2xl">🗑️</div>
+                        <div>
+                            <h1 class="text-xl font-bold text-slate-800">情绪垃圾桶</h1>
+                            <p class="text-slate-400 text-xs">此刻，我只是一个安静的倾听者。</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="loadConversationHistory()" class="text-slate-400 hover:text-teal-600 transition-colors text-sm p-2" title="加载历史">历史</button>
+                        <button onclick="clearChat()" class="text-slate-400 hover:text-red-400 transition-colors text-sm">清空</button>
+                    </div>
+                </div>
+
+                <div id="chatBox" class="chat-container overflow-y-auto p-8 space-y-8">
+                    <div class="flex gap-4">
+                        <div class="w-9 h-9 bg-teal-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white shadow-lg shadow-teal-100">AI</div>
+                        <div class="bubble-ai p-5 text-slate-700 text-sm leading-relaxed max-w-[85%]">
+                            你好。我是心愈。检测结果只是一个数字，如果你现在觉得压力大、委屈或者单纯想发呆，都可以告诉我。我会在这里一直陪着你。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-8 bg-white border-t border-slate-50">
+                    <div class="relative flex items-center gap-3">
+                        <input id="userInput" type="text" 
+                               onkeypress="if(event.keyCode==13) sendMessage()"
+                               placeholder="输入你想说的话..." 
+                               class="flex-1 bg-slate-50 border-none rounded-2xl py-4 px-6 focus:ring-2 focus:ring-teal-500 outline-none text-slate-700 placeholder:text-slate-300">
+                        <button id="voiceBtn" onclick="toggleVoice()" class="bg-slate-200 text-slate-600 w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-slate-300 transition-all">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        </button>
+                        <button onclick="sendMessage()" class="bg-teal-700 text-white w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-teal-800 transition-all shadow-lg shadow-teal-100">
+                            <svg class="w-6 h-6 rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                        </button>
+                    </div>
+                    <p id="voice-status" class="text-xs text-center text-slate-400 mt-2 hidden">点击麦克风开始语音输入</p>
+                </div>
             </div>
         </div>
     </main>
@@ -175,10 +236,10 @@
         
         function toggleVoice() {
             if (!recognition) {
-                alert('您的浏览器不支持语音识别功能，请使用 Chrome 浏览器');
+                notificationSystem.warning('您的浏览器不支持语音识别功能，请使用 Chrome 浏览器');
                 return;
             }
-            
+
             if (isRecording) {
                 recognition.stop();
             } else {
@@ -193,6 +254,47 @@
             voiceStatus.classList.add('hidden');
         }
 
+        // 全局变量
+        let currentConversationId = 'default';
+        let conversationHistory = [];
+
+        // 情绪标签映射
+        const emotionLabels = {
+            '平静': { class: 'emotion-calm', text: '平静' },
+            '低落': { class: 'emotion-low', text: '低落' },
+            '焦虑': { class: 'emotion-anxious', text: '焦虑' },
+            '压力大': { class: 'emotion-stressed', text: '压力大' },
+            '自责': { class: 'emotion-self-blame', text: '自责' },
+            '愤怒': { class: 'emotion-angry', text: '愤怒' }
+        };
+
+        function getEmotionTag(emotion) {
+            const emotionData = emotionLabels[emotion] || emotionLabels['平静'];
+            return `<span class="emotion-tag ${emotionData.class}">${emotionData.text}</span>`;
+        }
+
+        function appendMessage(role, text, emotionLabel = null, dangerLevel = '低') {
+            const div = document.createElement('div');
+            div.className = `flex gap-4 ${role === 'user' ? 'flex-row-reverse' : ''}`;
+            
+            const avatar = role === 'ai' 
+                ? '<div class="w-9 h-9 bg-teal-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white shadow-lg shadow-teal-100">AI</div>'
+                : `<div class="w-9 h-9 bg-teal-200 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-teal-700 shadow-sm">我</div>`;
+            
+            // 仅用户消息显示情绪标签
+            const emotionTag = role === 'user' && emotionLabel ? getEmotionTag(emotionLabel) : '';
+
+            div.innerHTML = `
+                ${avatar}
+                <div class="${role === 'ai' ? 'bubble-ai' : 'bubble-user'} p-5 text-sm leading-relaxed max-w-[85%]">
+                    <div>${text}</div>
+                    ${emotionTag}
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
         async function sendMessage() {
             const text = userInput.value.trim();
             if (!text) return;
@@ -201,43 +303,171 @@
             appendMessage('user', text);
             userInput.value = '';
 
-            // 2. 显示“对方正在输入”状态
+            // 2. 显示"对方正在输入"状态
             const typingId = appendTypingIndicator();
 
             try {
-                // 3. 请求后端 API (对应 app.py 中的 /api/chat)
+                // 3. 请求后端 API
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text })
+                    body: JSON.stringify({ 
+                        text: text,
+                        conversation_id: currentConversationId
+                    })
                 });
                 const data = await response.json();
                 
-                // 4. 移除加载状态并添加 AI 回复
+                // 4. 移除加载状态并添加 AI 回复（带情绪标签）
                 removeTypingIndicator(typingId);
-                appendMessage('ai', data.reply);
+                appendMessage('ai', data.reply, data.emotion_label, data.danger_level);
+                loadEmotionStats();
             } catch (error) {
                 removeTypingIndicator(typingId);
                 appendMessage('ai', "抱歉，我刚才走神了，能再说一遍吗？");
             }
         }
 
-        function appendMessage(role, text) {
-            const div = document.createElement('div');
-            div.className = `flex gap-4 ${role === 'user' ? 'flex-row-reverse' : ''}`;
-            
-            const avatar = role === 'ai' 
-                ? '<div class="w-9 h-9 bg-teal-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white shadow-lg shadow-teal-100">AI</div>'
-                : `<div class="w-9 h-9 bg-teal-200 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-teal-700 shadow-sm">我</div>`;
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('hidden');
+        }
 
-            div.innerHTML = `
-                ${avatar}
-                <div class="${role === 'ai' ? 'bubble-ai' : 'bubble-user'} p-5 text-sm leading-relaxed max-w-[85%]">
-                    ${text}
-                </div>
-            `;
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
+        // 情绪统计颜色映射
+        const emotionColors = {
+            '平静': '#d1fae5',
+            '低落': '#dbeafe',
+            '焦虑': '#ede9fe',
+            '压力大': '#fef3c7',
+            '自责': '#fce7f3',
+            '愤怒': '#fee2e2'
+        };
+        const emotionTextColors = {
+            '平静': '#065f46',
+            '低落': '#1e40af',
+            '焦虑': '#5b21b6',
+            '压力大': '#92400e',
+            '自责': '#9d174d',
+            '愤怒': '#991b1b'
+        };
+
+        async function loadEmotionStats() {
+            try {
+                const res = await fetch('/api/emotion-stats');
+                if (!res.ok) return;
+                const data = await res.json();
+                const list = document.getElementById('emotion-stats-list');
+                if (!data.stats || data.stats.length === 0) {
+                    list.innerHTML = '<div class="text-xs text-slate-300 text-center py-2">暂无数据</div>';
+                    return;
+                }
+                const total = data.stats.reduce((s, i) => s + i.count, 0);
+                list.innerHTML = data.stats.map(item => {
+                    const pct = Math.round(item.count / total * 100);
+                    const bg = emotionColors[item.emotion] || '#f1f5f9';
+                    const tc = emotionTextColors[item.emotion] || '#475569';
+                    return `
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-medium w-12 flex-shrink-0" style="color:${tc}">${item.emotion}</span>
+                            <div class="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                <div class="h-2 rounded-full transition-all" style="width:${pct}%;background:${tc};opacity:0.6"></div>
+                            </div>
+                            <span class="text-xs text-slate-400 w-6 text-right">${item.count}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) {
+                // 静默失败，不影响主功能
+            }
+        }
+
+        async function loadConversationList() {
+            try {
+                const res = await fetch('/api/dialogue/conversations');
+                const conversations = await res.json();
+                const listContainer = document.getElementById('conversation-list');
+                
+                if (conversations.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="conversation-item active" onclick="switchConversation('default')">
+                            <div class="text-sm font-medium text-slate-700 truncate">当前对话</div>
+                            <div class="text-xs text-slate-400">点击开始聊天</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                listContainer.innerHTML = conversations.map(conv => `
+                    <div class="conversation-item ${conv.conversation_id === currentConversationId ? 'active' : ''}" 
+                         onclick="switchConversation('${conv.conversation_id}')">
+                        <div class="text-sm font-medium text-slate-700 truncate">对话 ${conv.conversation_id}</div>
+                        <div class="text-xs text-slate-400">${conv.message_count} 条消息</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('加载会话列表失败', e);
+            }
+        }
+
+        async function switchConversation(convId) {
+            currentConversationId = convId;
+            chatBox.innerHTML = '';
+            
+            // 加载该会话的历史
+            try {
+                const res = await fetch(`/api/dialogue/history?conversation_id=${convId}`);
+                const history = await res.json();
+                
+                if (history.length === 0) {
+                    // 空对话，显示欢迎语
+                    appendMessage('ai', '你好。我是心愈。检测结果只是一个数字，如果你现在觉得压力大、委屈或者单纯想发呆，都可以告诉我。我会在这里一直陪着你。');
+                } else {
+                    // 显示历史消息
+                    history.forEach(msg => {
+                        appendMessage(msg.role === 'user' ? 'user' : 'ai', msg.message, msg.emotion_label, msg.danger_level);
+                    });
+                }
+            } catch (e) {
+                console.error('加载历史失败', e);
+                appendMessage('ai', '你好。我是心愈。检测结果只是一个数字，如果你现在觉得压力大、委屈或者单纯想发呆，都可以告诉我。我会在这里一直陪着你。');
+            }
+            
+            loadConversationList();
+        }
+
+        async function startNewConversation() {
+            try {
+                const res = await fetch('/api/dialogue/conversations', { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.conversation_id) {
+                    currentConversationId = data.conversation_id;
+                    chatBox.innerHTML = '';
+                    appendMessage('ai', '新的对话已开始。我在这里倾听你，请告诉我你的想法。');
+                    loadConversationList();
+                }
+            } catch (e) {
+                console.error('创建新对话失败', e);
+            }
+        }
+
+        async function loadConversationHistory() {
+            try {
+                const res = await fetch(`/api/dialogue/history?conversation_id=${currentConversationId}`);
+                const history = await res.json();
+                
+                if (history.length === 0) {
+                    notificationSystem.info('当前会话暂无历史记录');
+                    return;
+                }
+                
+                chatBox.innerHTML = '';
+                history.forEach(msg => {
+                    appendMessage(msg.role === 'user' ? 'user' : 'ai', msg.message, msg.emotion_label, msg.danger_level);
+                });
+            } catch (e) {
+                console.error('加载历史失败', e);
+            }
         }
 
         function appendTypingIndicator() {
@@ -264,9 +494,34 @@
         }
 
         function clearChat() {
-            chatBox.innerHTML = '';
-            appendMessage('ai', "对话已清空。如果你准备好了，我们可以重新开始。");
+            if (!confirm('确定要清空当前对话吗？')) return;
+            
+            fetch('/api/dialogue/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversation_id: currentConversationId })
+            }).then(() => {
+                chatBox.innerHTML = '';
+                appendMessage('ai', "对话已清空。如果你准备好了，我们可以重新开始。");
+                loadEmotionStats();
+            });
         }
+
+        // 页面加载时初始化
+        (function init() {
+            loadConversationList();
+            loadEmotionStats();
+        })();
+    </script>
+
+    <!-- 全局错误处理与通知系统 -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+
+    <script>
+        // 用户登录后保存用户ID到sessionStorage
+        {% if session.get('user_id') %}
+        sessionStorage.setItem('user_id', '{{ session.get("user_id") }}');
+        {% endif %}
     </script>
 </body>
 </html>

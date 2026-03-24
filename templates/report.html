@@ -75,7 +75,47 @@
         </div>
     </div>
 
+    <!-- 推荐文章模块 -->
+    <div class="max-w-6xl mx-auto mt-16 px-6">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="w-12 h-12 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800">推荐阅读</h2>
+                <p class="text-slate-500 text-sm">根据您的测评结果，为您推荐以下文章</p>
+            </div>
+        </div>
+
+        <div id="recommended-articles" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="col-span-full flex justify-center py-8">
+                <div class="animate-pulse text-slate-400">正在加载推荐文章...</div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // 分类名称映射
+        const categoryNames = {
+            'Depression': '抑郁',
+            'Anxiety': '焦虑',
+            'Sleep': '睡眠',
+            'Pressure': '压力',
+            'Social': '社交',
+            'Self': '自我成长'
+        };
+
+        const categoryColors = {
+            'Depression': 'bg-purple-50 text-purple-600',
+            'Anxiety': 'bg-blue-50 text-blue-600',
+            'Sleep': 'bg-indigo-50 text-indigo-600',
+            'Pressure': 'bg-orange-50 text-orange-600',
+            'Social': 'bg-green-50 text-green-600',
+            'Self': 'bg-pink-50 text-pink-600'
+        };
+
         // 1. 获取后端传回的数据
         // 期望格式: {radar_data: [dep, anx, sle, pre, soc, self, voice], risk_level: '...'}
         const data = JSON.parse(localStorage.getItem('eval_result')) || {
@@ -149,6 +189,47 @@
 
         // 窗口缩放自适应
         window.onresize = chart.resize;
+
+        // 加载推荐文章
+        async function loadRecommendedArticles() {
+            try {
+                const highestCategory = data.highest_category || '';
+                const res = await fetch(`/api/articles/recommend?category=${highestCategory}&limit=3`);
+                const articles = await res.json();
+                renderRecommendedArticles(articles);
+            } catch (e) {
+                document.getElementById('recommended-articles').innerHTML =
+                    `<div class="col-span-full text-center py-8 text-slate-400">暂无推荐</div>`;
+            }
+        }
+
+        function renderRecommendedArticles(articles) {
+            const container = document.getElementById('recommended-articles');
+            if (!articles || articles.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400">暂无推荐</div>`;
+                return;
+            }
+
+            container.innerHTML = articles.map(a => `
+                <div onclick="window.location.href='/article/${a.id}'"
+                     class="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-xl transition-all cursor-pointer border border-transparent hover:border-teal-100 group">
+                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium ${categoryColors[a.category] || 'bg-slate-100 text-slate-600'}">
+                        ${categoryNames[a.category] || '科普'}
+                    </span>
+                    <h3 class="text-lg font-bold text-slate-800 mt-4 mb-3 group-hover:text-teal-600 transition-colors">${a.title}</h3>
+                    <p class="text-sm text-slate-500 line-clamp-2">${a.summary || '点击查看全文'}</p>
+                    <div class="mt-4 flex items-center text-teal-600 text-sm font-medium">
+                        阅读全文
+                        <svg class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 页面加载后获取推荐文章
+        window.onload = function() {
+            loadRecommendedArticles();
+        };
     </script>
 </body>
 </html>

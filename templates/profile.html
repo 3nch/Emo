@@ -209,13 +209,35 @@
 
         // 2. 从后端 API 获取真实数据
         let allRecords = [];  // 保存历史记录数据
-        
+
         // 加载统计数据
         async function loadStats() {
+            console.log('loadStats 开始...');
             try {
-                const res = await fetch('/api/stats');
-                if (!res.ok) return;
+                // 使用 AbortController 设置超时
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                console.log('正在请求 /api/stats...');
+                const res = await fetch('/api/stats', {
+                    signal: controller.signal,
+                    credentials: 'same-origin'
+                });
+
+                clearTimeout(timeoutId);
+                console.log('/api/stats 响应状态:', res.status);
+
+                // 未登录时返回401，静默处理
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        console.log('用户未登录，跳过统计数据加载');
+                        return;
+                    }
+                    console.log('请求失败，状态码:', res.status);
+                    return;
+                }
                 const stats = await res.json();
+                console.log('统计数据:', stats);
                 
                 // 更新统计卡片
                 document.getElementById('total-detects').innerText = stats.total_assessments || 0;
@@ -245,6 +267,10 @@
                 
             } catch (e) {
                 console.error('加载统计数据失败', e);
+                // 显示错误提示
+                if (notificationSystem) {
+                    notificationSystem.warning('统计数据加载较慢，请稍后刷新页面');
+                }
             }
         }
         
@@ -293,21 +319,46 @@
         }
         
         async function fetchHistory() {
+            console.log('fetchHistory 开始...');
             try {
-                // 对应 app.py 中的一个新路由，例如 /api/history
-                const res = await fetch('/api/history');
+                // 使用 AbortController 设置超时
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                console.log('正在请求 /api/history...');
+                const res = await fetch('/api/history', {
+                    signal: controller.signal,
+                    credentials: 'same-origin'
+                });
+
+                clearTimeout(timeoutId);
+                console.log('/api/history 响应状态:', res.status);
+
+                // 未登录时API可能返回空数据或其他状态，静默处理
+                if (!res.ok) {
+                    console.log('历史记录加载失败或未登录, 状态:', res.status);
+                    const historyListEl = document.getElementById('history-list');
+                    if (historyListEl) {
+                        historyListEl.innerHTML = `<p class="text-center text-slate-400 py-10">登录后查看历史记录</p>`;
+                    }
+                    return;
+                }
                 const history = await res.json();
                 allRecords = history;  // 保存数据供 viewDetail 使用
                 
-                if(history.length === 0) {
-                    document.getElementById('history-list').innerHTML = `<p class="text-center text-slate-400 py-10">暂无数据，快去完成第一次测评吧！</p>`;
+                if(!Array.isArray(history) || history.length === 0) {
+                    const historyListEl = document.getElementById('history-list');
+                    if (historyListEl) {
+                        historyListEl.innerHTML = `<p class="text-center text-slate-400 py-10">暂无数据，快去完成第一次测评吧！</p>`;
+                    }
                     return;
                 }
 
                 // 更新统计数字
-                document.getElementById('total-detects').innerText = history.length;
-                const sum = history.reduce((a, b) => a + b.phq_score, 0);
-                document.getElementById('avg-score').innerText = (sum / history.length).toFixed(1);
+                const totalDetectsEl = document.getElementById('total-detects');
+                const avgScoreEl = document.getElementById('avg-score');
+                if (totalDetectsEl) totalDetectsEl.innerText = history.length;
+                if (avgScoreEl) avgScoreEl.innerText = (sum / history.length).toFixed(1);
 
                 // 准备图表数据
                 const labels = history.map(h => h.created_at.split(' ')[0]).reverse();
@@ -316,6 +367,7 @@
 
                 // 渲染列表 - 添加点击事件
                 const listContainer = document.getElementById('history-list');
+                if (!listContainer) return;
                 listContainer.innerHTML = history.map(item => `
                     <div onclick="viewDetail(${item.id})" class="flex items-center justify-between p-6 hover:bg-slate-50 rounded-3xl transition-all cursor-pointer group border border-transparent hover:border-slate-100">
                         <div class="flex items-center gap-6">
@@ -336,6 +388,7 @@
 
             } catch (e) {
                 console.error("加载失败", e);
+                document.getElementById('history-list').innerHTML = `<p class="text-center text-slate-400 py-10">数据加载较慢，请刷新页面重试</p>`;
             }
         }
 
@@ -380,8 +433,30 @@
 
         async function loadCheckinStatus() {
             try {
-                const res = await fetch('/api/checkin');
-                if (!res.ok) return;
+                // 使用 AbortController 设置超时
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+                const res = await fetch('/api/checkin', {
+                    signal: controller.signal,
+                    credentials: 'same-origin'
+                });
+
+                clearTimeout(timeoutId);
+
+                // 未登录时返回401，静默处理
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        console.log('用户未登录，跳过打卡状态加载');
+                        document.getElementById('checkin-status').innerHTML = `
+                            <div class="text-center py-2 text-slate-400">
+                                <a href="/login" class="text-teal-600 hover:underline">登录</a> 后查看打卡记录
+                            </div>
+                        `;
+                        return;
+                    }
+                    return;
+                }
                 const data = await res.json();
                 
                 const today = new Date().toISOString().split('T')[0];
@@ -412,6 +487,11 @@
                 }
             } catch (e) {
                 console.error('加载打卡状态失败', e);
+                document.getElementById('checkin-status').innerHTML = `
+                    <div class="text-center py-2 text-slate-400">
+                        <span>加载中...</span>
+                    </div>
+                `;
             }
         }
 
@@ -424,22 +504,54 @@
                     body: JSON.stringify({mood_score: score, mood_label: label, note: note})
                 });
                 if (res.ok) {
-                    alert('打卡成功！');
+                    notificationSystem.success('打卡成功！');
                     loadCheckinStatus();
+                } else {
+                    const data = await res.json();
+                    notificationSystem.error(data.error || '打卡失败，请重试');
                 }
             } catch (e) {
-                alert('打卡失败，请重试');
+                notificationSystem.error('网络错误，请检查网络连接');
             }
         }
 
         function exportData() {
-            window.location.href = '/api/export';
+            if (!sessionStorage.getItem('user_id')) {
+                notificationSystem.warning('请先登录');
+                return;
+            }
+            window.location.href = '/api/checkin/export';
         }
+    </script>
+
+    <!-- 全局错误处理与通知系统 -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+
+    <script>
+        // 用户登录后保存用户ID到sessionStorage
+        {% if session.get('user_id') %}
+        sessionStorage.setItem('user_id', '{{ session.get("user_id") }}');
+        {% endif %}
+
+        // 先测试服务器是否正常响应
 
         window.onload = function() {
-            fetchHistory();
-            loadCheckinStatus();
-            loadStats();
+            console.log('开始加载数据...');
+
+            // 先检查服务器
+            fetch('/api/health', { credentials: 'same-origin' })
+                .then(res => res.json())
+                .then(data => {
+                    console.log('服务器正常:', data);
+                    // 服务器正常后加载数据
+                    fetchHistory();
+                    loadCheckinStatus();
+                    loadStats();
+                })
+                .catch(err => {
+                    console.error('服务器连接失败:', err);
+                    document.getElementById('history-list').innerHTML = '<p class="text-center text-red-400 py-10">服务器连接失败，请刷新页面</p>';
+                });
         };
     </script>
 </body>

@@ -137,5 +137,27 @@
             </div>
         </div>
     </footer>
+
+    <!-- 全局错误处理与通知系统 -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+
+    <script>
+        // 检查登录状态
+        {% if session.get('user_id') %}
+        sessionStorage.setItem('user_id', '{{ session.get("user_id") }}');
+        {% endif %}
+
+        // 检查URL参数处理登录成功回调
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('login_success') === 'true') {
+            sessionStorage.setItem('user_id', '{{ session.get("user_id") }}');
+            // 显示欢迎提示
+            setTimeout(() => {
+                notificationSystem.success('欢迎回来，{{ session.get("username", "朋友") }}！');
+                // 清除URL参数
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }, 500);
+        }
+    </script>
 </body>
 </html>
