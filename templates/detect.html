@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}心理健康检测 — 心愈 AI{% endblock %}
+{% block page_title %}情绪检测{% endblock %}
+
+{% block extra_head %}
+<style>
+.q-enter { animation: fadeUp 0.38s cubic-bezier(0.4,0,0.2,1) both; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="padding:32px 28px 60px;display:flex;flex-direction:column;align-items:center;">
+
+  <!-- 进度条 -->
+  <div style="width:100%;max-width:680px;margin-bottom:32px;" class="anim-fade-up">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span id="progress-label" style="font-size:11px;font-weight:700;color:var(--c-primary);letter-spacing:.08em;text-transform:uppercase;">进度 0%</span>
+      <span id="category-tag" style="font-size:11px;color:var(--text-3);">维度匹配中...</span>
+      <span id="step-counter" style="font-size:11px;font-weight:700;color:var(--c-orange);letter-spacing:.08em;">STEP --/--</span>
+    </div>
+    <div class="progress-track"><div id="progress-bar" class="progress-fill" style="width:0%;"></div></div>
+  </div>
+
+  <!-- 题目卡片 -->
+  <div id="assessment-card" class="card anim-fade-up delay-1"
+       style="width:100%;max-width:680px;padding:44px;min-height:460px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,var(--c-primary-glow) 0%,transparent 70%);pointer-events:none;"></div>
+    <div id="question-content" class="q-enter"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
+      <button id="prev-btn" onclick="handlePrev()" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text-3);background:none;border:none;cursor:pointer;opacity:0;pointer-events:none;transition:all var(--t-fast);">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>上一题
+      </button>
+      <span style="font-size:11px;color:var(--text-3);">请根据最近一周的实际情况作答</span>
+    </div>
+  </div>
+</div>
+
+<!-- 语音弹窗 -->
+<div id="voice-modal" style="display:none;position:fixed;inset:0;background:rgba(31,42,68,0.8);backdrop-filter:blur(12px);z-index:300;align-items:center;justify-content:center;padding:24px;">
+  <div class="card" style="max-width:540px;width:100%;padding:44px;text-align:center;position:relative;">
+    <div style="width:64px;height:64px;border-radius:var(--r-lg);background:linear-gradient(135deg,var(--c-primary),var(--c-green));display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;box-shadow:var(--shadow-blue);">🎙️</div>
+    <h3 style="font-size:16px;font-weight:700;color:var(--text-1);margin-bottom:8px;letter-spacing:-.02em;">语音情绪采样</h3>
+    <p style="font-size:14px;color:var(--text-2);margin-bottom:28px;line-height:1.7;">AI 将分析您的声音特征，提升评估准确性</p>
+    <div style="display:flex;flex-direction:column;gap:12px;text-align:left;margin-bottom:28px;">
+      <div class="glass-inner" style="padding:18px 22px;">
+        <p style="font-size:11px;font-weight:700;color:var(--c-primary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">任务一：朗读句子</p>
+        <p style="font-size:14px;color:var(--text-1);line-height:1.8;">&ldquo;今天的天气很平常，我正在尝试通过这个系统了解自己的内心世界。无论结果如何，我都会积极面对生活中的每一次起伏。&rdquo;</p>
+      </div>
+      <div class="glass-inner" style="padding:18px 22px;">
+        <p style="font-size:11px;font-weight:700;color:var(--c-orange-d);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">任务二：回答问题</p>
+        <p style="font-size:14px;color:var(--text-1);line-height:1.8;">您最近感到最有压力的一件事是什么？您是如何应对那种感觉的？</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+      <p id="voice-desc" style="font-size:13px;color:var(--c-primary);font-weight:600;display:none;">🔴 录音中，请开始朗读...</p>
+      <button id="record-btn" style="width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,var(--c-primary),var(--c-green));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:var(--shadow-blue);transition:all .2s;">🎤</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="timer" style="font-size:16px;font-weight:700;color:var(--c-orange);font-variant-numeric:tabular-nums;display:none;">00:00</span>
+        <span id="recording-dot" style="width:8px;height:8px;border-radius:50%;background:var(--c-red);display:none;animation:recordPulse 1.2s ease-in-out infinite;"></span>
+      </div>
+      <p style="font-size:11px;color:var(--text-3);">建议录制 15-30 秒</p>
+    </div>
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+      <button onclick="finalSubmit(null)" style="font-size:12px;color:var(--text-3);background:none;border:none;cursor:pointer;text-decoration:underline;">暂不方便说话，跳过此步骤</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+{% if session.get('user_id') %}sessionStorage.setItem('user_id','{{ session.get("user_id") }}');{% endif %}
+let questions=[],currentIndex=0,answers={},pathHistory=[];
+let mediaRecorder,audioChunks=[],timerInterval;
+const OPTION_MAP={
+  'PHQ-9':['完全没有','有几天','一半以上时间','几乎天天'],
+  'GAD-7':['完全没有','有几天','一半以上时间','几乎天天'],
+  'PSS-STYLE':['从未','偶尔','经常','总是'],
+  'DEFAULT':['完全没有','有几天','一半以上时间','几乎天天']
+};
+async function init(){
+  try{
+    const res=await fetch('/api/questions');
+    questions=await res.json();
+    if(!questions.length){document.getElementById('question-content').innerHTML='<p style="color:var(--c-red);text-align:center;padding:40px 0;">暂无题目，请联系管理员初始化题库</p>';return;}
+    renderQuestion();
+  }catch(e){
+    document.getElementById('question-content').innerHTML='<p style="color:var(--c-red);text-align:center;padding:40px 0;">题目加载失败，请刷新页面</p>';
+  }
+}
+function renderQuestion(){
+  const q=questions[currentIndex];
+  const pct=Math.round(((currentIndex+1)/questions.length)*100);
+  document.getElementById('step-counter').innerText=`STEP ${String(currentIndex+1).padStart(2,'0')}/${questions.length}`;
+  document.getElementById('progress-bar').style.width=pct+'%';
+  document.getElementById('progress-label').innerText='进度 '+pct+'%';
+  document.getElementById('category-tag').innerText='评估维度: '+q.scale_type;
+  const prevBtn=document.getElementById('prev-btn');
+  prevBtn.style.opacity=currentIndex>0?'1':'0';
+  prevBtn.style.pointerEvents=currentIndex>0?'auto':'none';
+  const options=OPTION_MAP[q.scale_type]||OPTION_MAP['DEFAULT'];
+  const content=document.getElementById('question-content');
+  content.className='q-enter';
+  content.innerHTML=`
+    <h2 style="font-size:18px;font-weight:700;color:var(--text-1);line-height:1.5;margin-bottom:28px;letter-spacing:-.02em;">${q.text}</h2>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      ${options.map((label,val)=>`
+      <button onclick="handleSelect(${q.id},${val})" class="option-btn ${answers[q.id]===val?'selected':''}">
+        <div class="option-letter">${String.fromCharCode(65+val)}</div>
+        <span>${label}</span>
+      </button>`).join('')}
+    </div>`;
+  void content.offsetWidth;
+}
+function handleSelect(qId,val){
+  answers[qId]=val;
+  pathHistory.push(currentIndex);
+  if(currentIndex<questions.length-1){currentIndex++;renderQuestion();}
+  else{document.getElementById('voice-modal').style.display='flex';}
+}
+function handlePrev(){if(pathHistory.length>0){currentIndex=pathHistory.pop();renderQuestion();}}
+document.getElementById('record-btn').onclick=async function(){
+  if(mediaRecorder&&mediaRecorder.state==='recording'){stopRecording();return;}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRecorder=new MediaRecorder(stream);
+    audioChunks=[];
+    mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+    mediaRecorder.onstop=()=>{const blob=new Blob(audioChunks,{type:'audio/wav'});finalSubmit(blob);};
+    mediaRecorder.start();
+    this.style.background='linear-gradient(135deg,var(--c-red),#b91c1c)';
+    this.textContent='⏹️';
+    document.getElementById('voice-desc').style.display='block';
+    document.getElementById('timer').style.display='inline';
+    document.getElementById('recording-dot').style.display='inline-block';
+    let sec=0;
+    timerInterval=setInterval(()=>{sec++;document.getElementById('timer').innerText=`00:${sec<10?'0'+sec:sec}`;if(sec>=30)stopRecording();},1000);
+  }catch(err){if(window.notificationSystem)notificationSystem.error('无法访问麦克风，请检查权限');}
+};
+function stopRecording(){
+  if(mediaRecorder)mediaRecorder.stop();
+  clearInterval(timerInterval);
+  if(mediaRecorder&&mediaRecorder.stream)mediaRecorder.stream.getTracks().forEach(t=>t.stop());
+  const btn=document.getElementById('record-btn');
+  btn.style.background='linear-gradient(135deg,var(--c-primary),var(--c-green))';
+  btn.textContent='🎤';
+  document.getElementById('voice-desc').style.display='none';
+  document.getElementById('recording-dot').style.display='none';
+}
+async function finalSubmit(audioBlob){
+  const modal=document.getElementById('voice-modal');
+  modal.innerHTML=`<div style="text-align:center;padding:60px 40px;"><div class="spinner" style="margin:0 auto 20px;"></div><p style="color:var(--text-1);font-weight:600;font-size:15px;">正在通过 Wav2Vec2 分析语音情绪...</p><p style="color:var(--text-3);font-size:13px;margin-top:8px;">请稍候</p></div>`;
+  const formData=new FormData();
+  formData.append('answers',JSON.stringify(answers));
+  if(audioBlob)formData.append('audio',audioBlob,'assessment_voice.wav');
+  const res=await fetch('/api/submit',{method:'POST',body:formData});
+  const result=await res.json();
+  localStorage.setItem('eval_result',JSON.stringify(result));
+  window.location.href='/report';
+}
+window.onload=init;
+</script>
+{% endblock %}

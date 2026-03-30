@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% block title %}个人中心 — 心愈 AI{% endblock %}
+{% block page_title %}个人中心{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div style="padding:32px 28px 60px;">
+  <div style="display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:stretch;">
+
+    <!-- 左列 -->
+    <div style="display:flex;flex-direction:column;gap:20px;height:100%;">
+
+      <!-- 用户卡片 -->
+      <div class="card anim-fade-up" style="padding:32px;text-align:center;">
+        <div style="position:relative;display:inline-block;margin-bottom:16px;">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ username }}" style="width:80px;height:80px;border-radius:50%;border:2px solid var(--c-primary-bg);">
+          {% if not is_anonymous %}<div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;background:var(--c-green-d);border:2px solid var(--bg-card);"></div>{% endif %}
+        </div>
+        <h2 style="font-size:16px;font-weight:700;color:var(--text-1);margin-bottom:6px;letter-spacing:-.02em;">{{ username }}</h2>
+        {% if is_anonymous %}
+        <p style="font-size:13px;color:var(--text-3);">游客模式 · <a href="/login" style="color:var(--c-primary);">登录后查看更多</a></p>
+        {% else %}
+        <p style="font-size:13px;color:var(--text-3);">已加入 · 保持自我关注</p>
+        {% endif %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+          <div><p class="stat-number" id="total-detects">0</p><p class="stat-label">测评次数</p></div>
+          <div><p class="stat-number" id="consecutive-days">0</p><p class="stat-label">连续打卡</p></div>
+        </div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:12px;color:var(--text-3);">心理健康评分</span>
+            <span id="mental-score" style="font-size:13px;font-weight:700;color:var(--c-orange);">--</span>
+          </div>
+          <div class="progress-track"><div id="score-bar" class="progress-fill" style="width:0%;"></div></div>
+        </div>
+      </div>
+
+      <!-- 情绪趋势 -->
+      <div class="card anim-fade-up delay-1" style="padding:22px;">
+        <h3 style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:14px;letter-spacing:-.01em;">本周情绪趋势</h3>
+        <div style="height:110px;"><canvas id="moodChart"></canvas></div>
+      </div>
+
+      <!-- 每日寄语 -->
+      <div style="padding:22px 26px;background:var(--c-primary-bg);border:1px solid rgba(49,87,44,0.2);border-radius:var(--r-lg);" class="anim-fade-up delay-2">
+        <p style="font-size:10px;font-weight:700;color:var(--c-primary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">今日寄语</p>
+        <p style="font-size:13px;color:var(--text-2);line-height:1.8;font-style:italic;">&ldquo;情绪如同季节，阴晴圆缺皆是常态。重要的是，你始终拥有观察它们的力量。&rdquo;</p>
+      </div>
+
+      <!-- 每日打卡 -->
+      <div class="card anim-fade-up delay-3" style="padding:22px;margin-top:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-1);">每日情绪打卡</h3>
+          <button onclick="exportData()" style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--c-primary);background:none;border:none;cursor:pointer;">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>导出
+          </button>
+        </div>
+        <div id="checkin-status" style="margin-bottom:14px;"></div>
+        <div id="checkin-form">
+          <p style="font-size:13px;color:var(--text-2);margin-bottom:12px;">今天心情怎么样？</p>
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <button onclick="submitCheckin(1,'非常糟糕')" class="mood-btn-card"><span style="font-size:22px;">😢</span><p style="font-size:10px;color:var(--c-red);margin-top:4px;">很糟</p></button>
+            <button onclick="submitCheckin(2,'不太好')"  class="mood-btn-card"><span style="font-size:22px;">😔</span><p style="font-size:10px;color:#fb923c;margin-top:4px;">不好</p></button>
+            <button onclick="submitCheckin(3,'一般')"   class="mood-btn-card"><span style="font-size:22px;">😐</span><p style="font-size:10px;color:#fcd34d;margin-top:4px;">一般</p></button>
+            <button onclick="submitCheckin(4,'不错')"   class="mood-btn-card"><span style="font-size:22px;">🙂</span><p style="font-size:10px;color:var(--c-green-d);margin-top:4px;">不错</p></button>
+            <button onclick="submitCheckin(5,'很好')"   class="mood-btn-card"><span style="font-size:22px;">😄</span><p style="font-size:10px;color:var(--c-green-d);margin-top:4px;">很好</p></button>
+          </div>
+          <textarea id="checkin-note" placeholder="今天发生了什么？（可选）" class="textarea-field" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右列 -->
+    <div style="display:flex;flex-direction:column;gap:20px;height:100%;">
+      <div class="card anim-fade-up" style="padding:28px;">
+        <h3 style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:20px;letter-spacing:-.01em;">抑郁分值趋势 (PHQ-9)</h3>
+        <div style="height:240px;"><canvas id="historyChart"></canvas></div>
+      </div>
+      <div class="card anim-fade-up delay-1" style="padding:28px;display:flex;flex-direction:column;flex:1;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+          <h3 style="font-size:13px;font-weight:700;color:var(--text-1);letter-spacing:-.01em;">历史测评轨迹</h3>
+          <div id="history-summary" style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--bg);border:1px solid var(--border);font-size:12px;color:var(--text-3);">最近 5 条</div>
+        </div>
+        <div id="history-list" style="flex:1;"><div style="text-align:center;padding:40px;color:var(--text-3);">正在加载情绪轨迹...</div></div>
+        <div id="history-pagination" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+{% if session.get('user_id') %}sessionStorage.setItem('user_id','{{ session.get("user_id") }}');{% endif %}
+const isAnon = {{ 'true' if is_anonymous else 'false' }};
+const historyPageSize = 5;
+const historyPageBtnBase = 'display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:38px;padding:0 14px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(180deg, #ffffff, #f7f9f5);color:var(--text-2);font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 8px 20px rgba(19,42,19,0.05);transition:all var(--t-fast);';
+const historyPageBtnActive = 'border-color:rgba(49,87,44,0.2);background:linear-gradient(135deg, var(--c-primary), #6a994e);color:#fff;box-shadow:0 12px 24px rgba(79,119,45,0.22);';
+const historyPageBtnDisabled = 'opacity:.45;cursor:not-allowed;box-shadow:none;background:var(--bg);';
+let histChart = null, moodChartInst = null, historyRecords = [], historyPage = 1;
+
+async function loadProfile() {
+  try {
+    const res = await fetch('/api/profile');
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('total-detects').textContent = d.total_detects || 0;
+    document.getElementById('consecutive-days').textContent = d.consecutive_days || 0;
+    const score = d.mental_health_score || 0;
+    document.getElementById('mental-score').textContent = score;
+    document.getElementById('score-bar').style.width = Math.min(score, 100) + '%';
+  } catch(e) {}
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/history');
+    historyRecords = await res.json();
+    historyPage = 1;
+    renderHistoryList();
+    renderHistoryChart(historyRecords);
+  } catch(e) {}
+}
+
+function renderHistoryList() {
+  const el = document.getElementById('history-list');
+  const summary = document.getElementById('history-summary');
+  const pagination = document.getElementById('history-pagination');
+  if (!historyRecords.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-3);">暂无测评记录 · <a href="/detect" style="color:var(--c-primary);">开始测评</a></div>';
+    summary.textContent = '暂无历史记录';
+    pagination.innerHTML = '';
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(historyRecords.length / historyPageSize));
+  historyPage = Math.min(historyPage, totalPages);
+  const start = (historyPage - 1) * historyPageSize;
+  const end = Math.min(start + historyPageSize, historyRecords.length);
+  const pageRecords = historyRecords.slice(start, end);
+  summary.textContent = `第 ${historyPage} / ${totalPages} 页 · 共 ${historyRecords.length} 条`;
+  el.innerHTML = pageRecords.map((r, i) => {
+    const ds = formatBeijingDate(r.created_at);
+    const ts = formatBeijingTime(r.created_at);
+    const badgeCls = r.risk_level === '高风险' ? 'badge-red' : r.risk_level === '中等风险' ? 'badge-orange' : 'badge-green';
+    const anxiety = r.anxiety_score !== undefined && r.anxiety_score !== null ? ` · GAD-7: ${r.anxiety_score}` : '';
+    return `<div class="record-card anim-fade-up" style="animation-delay:${i*.05}s;">
+      <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;">
+        <div style="width:52px;height:52px;border-radius:18px;background:linear-gradient(135deg, rgba(79,119,45,0.14), rgba(127,209,174,0.22));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--c-primary);flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(49,87,44,0.08);">${r.phq_score}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <p style="font-size:13px;font-weight:600;color:var(--text-1);">${ds}</p>
+            <span style="font-size:11px;color:var(--text-3);padding:3px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--border);">${ts}</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-3);line-height:1.7;">PHQ-9: ${r.phq_score}${anxiety}</p>
+        </div>
+      </div>
+      <span class="badge ${badgeCls}">${r.risk_level}</span>
+    </div>`;
+  }).join('');
+  renderHistoryPagination(totalPages, start + 1, end);
+}
+
+function renderHistoryPagination(totalPages, start, end) {
+  const pagination = document.getElementById('history-pagination');
+  if (totalPages <= 1) {
+    pagination.innerHTML = `<span style="font-size:12px;color:var(--text-3);">共 ${historyRecords.length} 条记录</span>`;
+    return;
+  }
+  let buttons = historyPage > 1
+    ? historyPageButton(`← 上一页`, historyPage - 1, { wide: true })
+    : historyPageButton(`← 上一页`, null, { disabled: true, wide: true });
+  const startPage = Math.max(1, historyPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+  if (startPage > 1) {
+    buttons += historyPageButton('1', 1);
+    if (startPage > 2) buttons += '<span style="font-size:12px;color:var(--text-3);padding:0 4px;">…</span>';
+  }
+  for (let i = startPage; i <= endPage; i++) {
+    buttons += historyPageButton(String(i), i, { active: i === historyPage });
+  }
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) buttons += '<span style="font-size:12px;color:var(--text-3);padding:0 4px;">…</span>';
+    buttons += historyPageButton(String(totalPages), totalPages);
+  }
+  buttons += historyPage < totalPages
+    ? historyPageButton(`下一页 →`, historyPage + 1, { wide: true })
+    : historyPageButton(`下一页 →`, null, { disabled: true, wide: true });
+  pagination.innerHTML = `
+    <div style="font-size:12px;color:var(--text-3);padding-left:2px;">当前展示第 ${start}-${end} 条</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-radius:16px;background:linear-gradient(180deg, rgba(255,255,255,0.92), rgba(247,249,245,0.98));border:1px solid rgba(49,87,44,0.08);box-shadow:0 10px 30px rgba(19,42,19,0.04);">${buttons}</div>
+  `;
+}
+
+function historyPageButton(label, page, options = {}) {
+  const style = [
+    historyPageBtnBase,
+    options.active ? historyPageBtnActive : '',
+    options.disabled ? historyPageBtnDisabled : '',
+    options.wide ? 'padding:0 16px;min-width:92px;' : ''
+  ].join('');
+  const hover = options.active || options.disabled ? '' : ` onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 14px 28px rgba(79,119,45,0.14)';this.style.borderColor='rgba(49,87,44,0.18)';this.style.color='var(--c-primary)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 8px 20px rgba(19,42,19,0.05)';this.style.borderColor='var(--border)';this.style.color='var(--text-2)'"`;
+  if (options.disabled) return `<button type="button" style="${style}" disabled>${label}</button>`;
+  return `<button type="button" style="${style}" onclick="goHistoryPage(${page})"${hover}>${label}</button>`;
+}
+
+function goHistoryPage(page) {
+  historyPage = page;
+  renderHistoryList();
+}
+
+function renderHistoryChart(records) {
+  const ctx = document.getElementById('historyChart').getContext('2d');
+  if (histChart) histChart.destroy();
+  const last = records.slice(-10).reverse();
+  histChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: last.map(r => formatBeijingMonthDay(r.created_at)),
+      datasets: [{ label: 'PHQ-9', data: last.map(r => r.phq_score),
+        borderColor: '#4f772d', backgroundColor: 'rgba(79,119,45,0.1)',
+        borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#4f772d', tension: 0.4, fill: true }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: { beginAtZero: true, max: 27, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } } } }
+  });
+}
+
+async function loadCheckinStatus() {
+  try {
+    const res = await fetch(`/api/checkin/today?ts=${Date.now()}`, { cache: 'no-store' });
+    const d = await res.json();
+    const el = document.getElementById('checkin-status');
+    if (d.checked_in) {
+      document.getElementById('checkin-form').style.display = 'none';
+      el.innerHTML = `<div style="text-align:center;padding:16px;background:var(--c-green-bg);border-radius:var(--r-md);border:1px solid rgba(127,209,174,.3);"><p style="font-size:13px;color:var(--c-green-d);font-weight:600;">✓ 今日已打卡</p><p style="font-size:12px;color:var(--text-3);margin-top:4px;">心情：${d.mood_label}</p></div>`;
+    } else { el.innerHTML = ''; }
+  } catch(e) {}
+}
+
+async function loadMoodChart() {
+  try {
+    const res = await fetch(`/api/checkin/week?ts=${Date.now()}`, { cache: 'no-store' });
+    const d = await res.json();
+    const ctx = document.getElementById('moodChart').getContext('2d');
+    if (moodChartInst) moodChartInst.destroy();
+    moodChartInst = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: d.map(i => i.date),
+        datasets: [{ data: d.map(i => i.mood_score),
+          backgroundColor: 'rgba(79,119,45,0.15)', borderColor: '#4f772d',
+          borderWidth: 1.5, borderRadius: 4 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                  y: { min: 0, max: 5, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { stepSize: 1, font: { size: 10 } } } } }
+    });
+  } catch(e) {}
+}
+
+async function submitCheckin(score, label) {
+  const note = document.getElementById('checkin-note').value.trim();
+  try {
+    const res = await fetch('/api/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mood_score: score, mood_label: label, note }) });
+    if (res.status === 401) { if (window.notificationSystem) notificationSystem.warning('请先登录'); return; }
+    const d = await res.json();
+    if (d.success) {
+      if (window.notificationSystem) notificationSystem.success('打卡成功！');
+      await loadCheckinStatus();
+      await loadMoodChart();
+      loadProfile();
+    }
+  } catch(e) {}
+}
+
+async function exportData() {
+  try {
+    const res = await fetch('/api/history');
+    const records = await res.json();
+    if (!records.length) { if (window.notificationSystem) notificationSystem.info('暂无数据可导出'); return; }
+    exportToCSV(records, '心愈AI_测评记录.csv');
+  } catch(e) {}
+}
+
+window.onload = function() {
+  loadProfile();
+  loadHistory();
+  loadCheckinStatus();
+  loadMoodChart();
+};
+</script>
+{% endblock %}

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}心愈 AI{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- Mobile drawer (full-page nav mode) -->
+<div class="mobile-drawer" id="mobileDrawer">
+  <div class="mobile-drawer-overlay" onclick="closeMobileMenu()"></div>
+  <div class="mobile-drawer-panel">
+    <a href="/" class="mobile-nav-link {% if request.endpoint=='index' %}active{% endif %}">🏠 首页仪表盘</a>
+    <a href="/detect" class="mobile-nav-link {% if request.endpoint=='detect' %}active{% endif %}">🧭 情绪检测</a>
+    <a href="/soothe" class="mobile-nav-link {% if request.endpoint=='soothe' %}active{% endif %}">💬 AI 陪伴</a>
+    <a href="/articles" class="mobile-nav-link {% if request.endpoint in ['articles','article_detail'] %}active{% endif %}">📖 心理科普</a>
+    <a href="/community" class="mobile-nav-link {% if request.endpoint=='community' %}active{% endif %}">🤝 互助社区</a>
+    <a href="/profile" class="mobile-nav-link {% if request.endpoint in ['profile','history'] %}active{% endif %}">👤 个人中心</a>
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      {% if session.get('user_id') %}
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:var(--r-md);background:var(--bg);">
+        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ session.username }}" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);">
+        <div><p style="font-size:13px;font-weight:600;color:var(--text-1);">{{ session.username }}</p><a href="/logout" style="font-size:12px;color:var(--c-red);">退出登录</a></div>
+      </div>
+      {% else %}
+      <a href="/login" class="btn btn-ghost" style="width:100%;margin-bottom:8px;">登录</a>
+      <a href="/register" class="btn btn-primary" style="width:100%;">注册账号</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- App Shell Layout -->
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="appSidebar">
+    <a href="/" class="sidebar-logo">
+      <div class="sidebar-logo-icon">🌿</div>
+      <span class="sidebar-logo-text">心愈 AI</span>
+    </a>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label">主功能</div>
+      <a href="/" class="sidebar-link {% if request.endpoint=='index' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        仪表盘
+      </a>
+      <a href="/detect" class="sidebar-link {% if request.endpoint=='detect' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        情绪检测
+      </a>
+      <a href="/soothe" class="sidebar-link {% if request.endpoint=='soothe' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        AI 情绪陪伴
+      </a>
+      <a href="/report" class="sidebar-link {% if request.endpoint=='report' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        评估报告
+      </a>
+
+      <div class="sidebar-section-label">资源</div>
+      <a href="/articles" class="sidebar-link {% if request.endpoint in ['articles','article_detail'] %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        心理科普
+      </a>
+      <a href="/books" class="sidebar-link {% if request.endpoint=='books' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+        书籍推荐
+      </a>
+      <a href="/community" class="sidebar-link {% if request.endpoint=='community' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        互助社区
+      </a>
+
+      <div class="sidebar-section-label">我的</div>
+      <a href="/profile" class="sidebar-link {% if request.endpoint=='profile' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        个人中心
+      </a>
+      <a href="/history" class="sidebar-link {% if request.endpoint=='history' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        检测档案
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      {% if session.get('user_id') %}
+      <a href="/profile" class="sidebar-user">
+        <div class="sidebar-avatar">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ session.username }}" style="width:100%;height:100%;">
+        </div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-username">{{ session.username }}</div>
+          <div class="sidebar-user-sub">查看个人中心</div>
+        </div>
+      </a>
+      <a href="/logout" style="display:block;margin-top:8px;font-size:12px;color:var(--c-red);padding:6px 10px;border-radius:var(--r-sm);transition:background var(--t-fast);" onmouseover="this.style.background='var(--c-red-bg)'" onmouseout="this.style.background='transparent'">退出登录</a>
+      {% else %}
+      <a href="/login" class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;">登录</a>
+      <a href="/register" class="btn btn-ghost btn-sm" style="width:100%;">注册账号</a>
+      {% endif %}
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Top Nav -->
+    <header class="topnav">
+      <div class="topnav-title">{% block page_title %}心愈 AI{% endblock %}</div>
+      <div class="topnav-search">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="搜索功能、报告...">
+      </div>
+      <div class="topnav-actions">
+        <button class="topnav-icon-btn" title="通知">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        </button>
+        <a href="/detect" class="btn btn-primary btn-sm">开始检测</a>
+        {% if session.get('user_id') %}
+        <a href="/profile">
+          <div class="topnav-avatar">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ session.username }}" style="width:100%;height:100%;">
+          </div>
+        </a>
+        {% else %}
+        <a href="/login" class="btn btn-ghost btn-sm">登录</a>
+        {% endif %}
+        <button class="nav-hamburger" id="hamburgerBtn" onclick="toggleMobileMenu()" style="display:none;">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="page-content">
+      {% block content %}{% endblock %}
+    </div>
+
+    {% block footer %}
+    <footer style="border-top:1px solid var(--border);padding:24px 28px;margin-top:auto;">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px;">
+        <span style="font-size:12px;color:var(--text-3);">心愈 AI &copy; 2026 · 仅供参考，不替代专业诊断</span>
+        <div style="display:flex;gap:20px;">
+          <a href="#" style="font-size:12px;color:var(--text-3);transition:color var(--t-fast);" onmouseover="this.style.color='var(--c-primary)'" onmouseout="this.style.color='var(--text-3)'">隐私协议</a>
+          <a href="#" style="font-size:12px;color:var(--text-3);transition:color var(--t-fast);" onmouseover="this.style.color='var(--c-primary)'" onmouseout="this.style.color='var(--text-3)'">服务条款</a>
+          <a href="#" style="font-size:12px;color:var(--text-3);transition:color var(--t-fast);" onmouseover="this.style.color='var(--c-primary)'" onmouseout="this.style.color='var(--text-3)'">关于我们</a>
+        </div>
+      </div>
+    </footer>
+    {% endblock %}
+  </div>
+</div>
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+{% endblock %}
+
+<script>
+function padBeijingNumber(value){
+  return String(value).padStart(2,'0');
+}
+function extractBeijingParts(value){
+  if(value===null||value===undefined||value==='') return null;
+  if(typeof value==='string'){
+    const normalized=value.trim().replace('T',' ').replace('Z','');
+    const match=normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if(match){
+      return {
+        year:Number(match[1]),
+        month:Number(match[2]),
+        day:Number(match[3]),
+        hour:Number(match[4]||0),
+        minute:Number(match[5]||0),
+        second:Number(match[6]||0)
+      };
+    }
+  }
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime())) return null;
+  const parts={};
+  new Intl.DateTimeFormat('zh-CN',{
+    timeZone:'Asia/Shanghai',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
+    hour:'2-digit',
+    minute:'2-digit',
+    second:'2-digit',
+    hour12:false
+  }).formatToParts(date).forEach(part=>{
+    if(part.type!=='literal') parts[part.type]=Number(part.value);
+  });
+  return {
+    year:parts.year,
+    month:parts.month,
+    day:parts.day,
+    hour:parts.hour||0,
+    minute:parts.minute||0,
+    second:parts.second||0
+  };
+}
+function formatBeijingDate(value){
+  const parts=extractBeijingParts(value);
+  if(!parts) return '--';
+  return `${parts.year}-${padBeijingNumber(parts.month)}-${padBeijingNumber(parts.day)}`;
+}
+function formatBeijingTime(value){
+  const parts=extractBeijingParts(value);
+  if(!parts) return '--:--';
+  return `${padBeijingNumber(parts.hour)}:${padBeijingNumber(parts.minute)}`;
+}
+function formatBeijingDateTime(value){
+  const parts=extractBeijingParts(value);
+  if(!parts) return '--';
+  return `${formatBeijingDate(value)} ${padBeijingNumber(parts.hour)}:${padBeijingNumber(parts.minute)}`;
+}
+function formatBeijingMonthDay(value){
+  const parts=extractBeijingParts(value);
+  if(!parts) return '--';
+  return `${parts.month}/${parts.day}`;
+}
+function toggleMobileMenu(){
+  const d=document.getElementById('mobileDrawer'),b=document.getElementById('hamburgerBtn');
+  const o=d.classList.contains('open');
+  if(o){d.classList.remove('open');b.classList.remove('open');document.body.style.overflow='';}
+  else{d.classList.add('open');b.classList.add('open');document.body.style.overflow='hidden';}
+}
+function closeMobileMenu(){
+  document.getElementById('mobileDrawer').classList.remove('open');
+  const b=document.getElementById('hamburgerBtn');
+  if(b)b.classList.remove('open');
+  document.body.style.overflow='';
+}
+// Responsive: show hamburger on mobile
+(function(){
+  const btn=document.getElementById('hamburgerBtn');
+  if(!btn)return;
+  function check(){btn.style.display=window.innerWidth<769?'flex':'none';}
+  check(); window.addEventListener('resize',check);
+})();
+</script>
+</body>
+</html>

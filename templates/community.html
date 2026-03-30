@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+{% block title %}互助社区 — 心愈 AI{% endblock %}
+{% block page_title %}互助社区{% endblock %}
+
+{% block content %}
+<div style="padding:32px 28px 60px;max-width:860px;">
+
+  <!-- 页头 -->
+  <div class="anim-fade-up" style="margin-bottom:36px;">
+    <div class="section-eyebrow">匿名 · 安全 · 温暖</div>
+    <h1 class="heading-lg" style="margin-bottom:10px;">互助社区</h1>
+    <p style="font-size:14px;color:var(--text-2);">在这里，你可以分享心情，互相支持</p>
+        </div>
+
+  <!-- 发帖框 -->
+  <div class="card anim-fade-up delay-1" style="padding:28px;margin-bottom:28px;">
+    <textarea id="post-content" placeholder="今天有什么想分享的吗？" class="textarea-field" rows="3" style="margin-bottom:12px;"></textarea>
+    <!-- 图片预览区 -->
+    <div id="img-preview-wrap" style="display:none;margin-bottom:12px;position:relative;width:fit-content;">
+      <img id="img-preview" src="" alt="预览" style="max-width:100%;max-height:240px;border-radius:var(--r-md);border:1px solid var(--border);display:block;">
+      <button onclick="removeImage()" title="移除图片" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(19,42,19,0.6);border:none;cursor:pointer;color:#fff;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button onclick="selectMood('开心')"  data-mood="开心"  class="btn btn-xs" style="background:var(--c-orange-bg);color:var(--c-orange-d);border:1px solid rgba(243,181,98,.3);">😄 开心</button>
+        <button onclick="selectMood('难过')"  data-mood="难过"  class="btn btn-xs" style="background:var(--c-primary-bg);color:var(--c-primary);border:1px solid rgba(49,87,44,.2);">😔 难过</button>
+        <button onclick="selectMood('焦虑')"  data-mood="焦虑"  class="btn btn-xs" style="background:var(--c-purple-bg);color:var(--c-purple);border:1px solid rgba(155,143,232,.2);">😰 焦虑</button>
+        <button onclick="selectMood('平静')"  data-mood="平静"  class="btn btn-xs" style="background:var(--c-green-bg);color:var(--c-green-d);border:1px solid rgba(127,209,174,.2);">😌 平静</button>
+        <button onclick="selectMood('感恩')"  data-mood="感恩"  class="btn btn-xs" style="background:#fff0f6;color:#d4608a;border:1px solid rgba(212,96,138,.2);">🙏 感恩</button>
+        <!-- 图片上传按钮 -->
+        <label for="post-image-input" title="上传图片" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-3);padding:5px 10px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg);transition:all var(--t-fast);" onmouseover="this.style.borderColor='var(--c-primary)';this.style.color='var(--c-primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-3)'">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          图片
+        </label>
+        <input type="file" id="post-image-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" onchange="handleImageSelect(this)">
+        <span id="img-upload-status" style="font-size:11px;color:var(--text-3);"></span>
+                </div>
+      <button onclick="submitPost()" class="btn btn-primary btn-sm">发布</button>
+            </div>
+        </div>
+
+        <!-- 帖子列表 -->
+  <div id="posts-list" style="display:flex;flex-direction:column;gap:16px;">
+    <div class="skeleton" style="height:120px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:120px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:120px;border-radius:var(--r-lg);"></div>
+        </div>
+
+  <!-- 分页 -->
+  <div id="pagination-container" style="display:flex;justify-content:center;align-items:center;gap:6px;margin-top:28px;"></div>
+
+        </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+    <script>
+{% if session.get('user_id') %}sessionStorage.setItem('user_id','{{ session.get("user_id") }}');{% endif %}
+let selectedMood = '', currentPage = 1, uploadedImageUrl = '';
+const moodStyle = {
+  '开心': 'background:var(--c-orange-bg);color:var(--c-orange-d);border:1px solid rgba(243,181,98,.3);',
+  '难过': 'background:var(--c-primary-bg);color:var(--c-primary);border:1px solid rgba(49,87,44,.2);',
+  '焦虑': 'background:var(--c-purple-bg);color:var(--c-purple);border:1px solid rgba(155,143,232,.2);',
+  '平静': 'background:var(--c-green-bg);color:var(--c-green-d);border:1px solid rgba(127,209,174,.2);',
+  '感恩': 'background:#fff0f6;color:#d4608a;border:1px solid rgba(212,96,138,.2);'
+};
+
+function selectMood(m) {
+  selectedMood = m;
+  document.querySelectorAll('[data-mood]').forEach(b =>
+    b.style.outline = b.dataset.mood === m ? '2px solid var(--c-primary)' : '');
+}
+
+// ── 图片上传 ──
+async function handleImageSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const maxSize = 5 * 1024 * 1024;
+  if (file.size > maxSize) {
+    if (window.notificationSystem) notificationSystem.error('图片大小不能超过 5MB');
+    input.value = ''; return;
+  }
+  // 本地预览
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('img-preview').src = e.target.result;
+    document.getElementById('img-preview-wrap').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  // 上传到服务器
+  const status = document.getElementById('img-upload-status');
+  status.textContent = '上传中...';
+  const fd = new FormData();
+  fd.append('image', file);
+  try {
+    const res = await fetch('/api/posts/upload-image', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) {
+      if (window.notificationSystem) notificationSystem.error(data.error || '上传失败');
+      removeImage(); status.textContent = ''; return;
+    }
+    uploadedImageUrl = data.url;
+    status.textContent = '✓ 图片已就绪';
+    status.style.color = 'var(--c-primary)';
+  } catch(e) {
+    if (window.notificationSystem) notificationSystem.error('网络错误，上传失败');
+    removeImage(); status.textContent = '';
+  }
+}
+
+function removeImage() {
+  uploadedImageUrl = '';
+  document.getElementById('img-preview-wrap').style.display = 'none';
+  document.getElementById('img-preview').src = '';
+  document.getElementById('post-image-input').value = '';
+  const s = document.getElementById('img-upload-status');
+  s.textContent = ''; s.style.color = '';
+        }
+
+        async function submitPost() {
+            const content = document.getElementById('post-content').value.trim();
+  if (!content) { if (window.notificationSystem) notificationSystem.warning('请输入内容'); return; }
+  const btn = document.querySelector('[onclick="submitPost()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '发布中...'; }
+  const res = await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, mood_tag: selectedMood, image_path: uploadedImageUrl }) });
+  if (btn) { btn.disabled = false; btn.textContent = '发布'; }
+  if (res.status === 401) { if (window.notificationSystem) notificationSystem.warning('请先登录'); return; }
+  const d = await res.json();
+                if (!res.ok) {
+    if (window.notificationSystem) notificationSystem.error(d.error || '发布失败');
+                    return;
+                }
+                document.getElementById('post-content').value = '';
+  selectedMood = ''; removeImage();
+  document.querySelectorAll('[data-mood]').forEach(b => b.style.outline = '');
+  if (window.notificationSystem) notificationSystem.success('发布成功！');
+  currentPage = 1; loadPosts();
+        }
+
+        async function loadPosts(page = 1) {
+  const res = await fetch(`/api/posts?page=${page}&page_size=10`);
+                const data = await res.json();
+  const posts = Array.isArray(data) ? data : (data.posts || []);
+  const pagination = Array.isArray(data) ? null : (data.pagination || null);
+                currentPage = page;
+  const c = document.getElementById('posts-list');
+  if (!posts.length) {
+    c.innerHTML = '<div style="text-align:center;padding:60px 0;color:var(--text-3);">暂无帖子，快来发布第一条吧！</div>';
+    renderPagination(null); return;
+  }
+  c.innerHTML = posts.map(p => {
+    const mb = p.mood_tag ? `<span style="${moodStyle[p.mood_tag] || ''}padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;">${p.mood_tag}</span>` : '';
+    const lkd = p.liked ? 'color:var(--c-red)' : 'color:var(--text-3)';
+    const lkf = p.liked ? 'currentColor' : 'none';
+    const imgHtml = p.image_path ? `<div style="margin-bottom:14px;"><img src="${p.image_path}" alt="帖子图片" style="max-width:100%;max-height:360px;border-radius:var(--r-md);border:1px solid var(--border);display:block;cursor:pointer;" onclick="window.open('${p.image_path}','_blank')"></div>` : '';
+    const isOwner = p.user_id == sessionStorage.getItem('user_id');
+    const deleteBtn = isOwner ? `<button onclick="deletePost(${p.id})" title="删除帖子" style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-3);background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:var(--r-sm);transition:all var(--t-fast);" onmouseover="this.style.color='var(--c-red)';this.style.background='var(--c-red-bg)'" onmouseout="this.style.color='var(--text-3)';this.style.background='none'"><svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>删除</button>` : '';
+    return `<div class="post-card" id="post-${p.id}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div style="width:38px;height:38px;border-radius:50%;background:var(--c-primary-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--c-primary);">${p.anonymous_name ? p.anonymous_name.charAt(0) : '匿'}</div>
+    <div><p style="font-weight:600;font-size:14px;color:var(--text-1);">${p.anonymous_name || '匿名用户'}</p><p style="font-size:11px;color:var(--text-3);">${formatBeijingDateTime(p.created_at)}</p></div>
+  </div>${mb}
+                                </div>
+<p style="font-size:14px;color:var(--text-2);line-height:1.75;margin-bottom:14px;white-space:pre-line;">${p.content}</p>
+${imgHtml}
+<div style="display:flex;align-items:center;gap:16px;">
+  <button onclick="toggleLike(${p.id})" style="display:flex;align-items:center;gap:5px;font-size:13px;${lkd};background:none;border:none;cursor:pointer;">
+    <svg width="16" height="16" fill="${lkf}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+    <span id="likes-${p.id}">${p.like_count || 0}</span></button>
+  <button onclick="toggleComments(${p.id})" style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text-3);background:none;border:none;cursor:pointer;">
+    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+    <span id="comments-count-${p.id}">${p.comment_count || 0}</span></button>
+  ${deleteBtn}
+                                </div>
+<div id="comments-section-${p.id}" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+  <div id="comments-list-${p.id}" style="margin-bottom:12px;"></div>
+  <div style="display:flex;gap:8px;"><input type="text" id="comment-input-${p.id}" placeholder="写下你的评论..." class="input-field" style="flex:1;" onkeypress="if(event.key==='Enter')addComment(${p.id})"><button onclick="addComment(${p.id})" class="btn btn-primary btn-sm">发送</button></div>
+</div></div>`;
+  }).join('');
+                renderPagination(pagination);
+}
+
+function renderPagination(p) {
+  const c = document.getElementById('pagination-container');
+  if (!p || p.total_pages <= 1) { c.innerHTML = ''; return; }
+  let h = p.has_prev ? `<button class="page-btn" onclick="loadPosts(${p.page - 1})">‹</button>` : '<button class="page-btn" disabled>‹</button>';
+  const s = Math.max(1, p.page - 2), e = Math.min(p.total_pages, s + 4);
+  if (s > 1) { h += `<button class="page-btn" onclick="loadPosts(1)">1</button>`; if (s > 2) h += '<span style="color:var(--text-3);padding:0 4px;">…</span>'; }
+  for (let i = s; i <= e; i++) h += `<button class="page-btn ${i === p.page ? 'active' : ''}" onclick="loadPosts(${i})">${i}</button>`;
+  if (e < p.total_pages) { if (e < p.total_pages - 1) h += '<span style="color:var(--text-3);padding:0 4px;">…</span>'; h += `<button class="page-btn" onclick="loadPosts(${p.total_pages})">${p.total_pages}</button>`; }
+  h += p.has_next ? `<button class="page-btn" onclick="loadPosts(${p.page + 1})">›</button>` : '<button class="page-btn" disabled>›</button>';
+  h += `<span style="font-size:12px;color:var(--text-3);margin-left:8px;">共 ${p.total_count} 条</span>`;
+  c.innerHTML = h;
+}
+
+async function toggleLike(id) {
+  const res = await fetch(`/api/posts/${id}/like`, { method: 'POST' });
+  if (res.status === 401) { if (window.notificationSystem) notificationSystem.warning('请先登录'); return; }
+  const d = await res.json(); document.getElementById(`likes-${id}`).innerText = d.likes;
+                loadPosts(currentPage);
+}
+
+async function toggleComments(id) {
+  const s = document.getElementById(`comments-section-${id}`);
+  if (s.style.display === 'none') { s.style.display = 'block'; await loadComments(id); } else s.style.display = 'none';
+}
+
+async function loadComments(id) {
+  const res = await fetch(`/api/posts/${id}/comments`);
+                const comments = await res.json();
+  const el = document.getElementById(`comments-list-${id}`);
+  function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+  if (!comments.length) { el.innerHTML = '<p style="font-size:12px;color:var(--text-3);text-align:center;padding:8px 0;">暂无评论</p>'; return; }
+  el.innerHTML = comments.map(c => {
+    const own = c.user_id == sessionStorage.getItem('user_id');
+    return `<div style="display:flex;gap:8px;padding:10px 14px;background:var(--bg);border-radius:var(--r-md);margin-bottom:6px;">
+<div style="width:26px;height:26px;border-radius:50%;background:var(--c-primary-bg);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-primary);font-weight:700;flex-shrink:0;">${c.anonymous_name ? c.anonymous_name.charAt(0) : '匿'}</div>
+<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="font-size:13px;font-weight:600;color:var(--text-1);">${c.anonymous_name || '匿名'}</span><span style="font-size:11px;color:var(--text-3);">${formatBeijingDateTime(c.created_at)}</span></div>
+<p style="font-size:13px;color:var(--text-2);line-height:1.6;">${esc(c.content)}</p></div>
+${own ? `<button onclick="deleteComment(${c.id},${id})" style="font-size:11px;color:var(--text-3);background:none;border:none;cursor:pointer;flex-shrink:0;" onmouseover="this.style.color='var(--c-red)'" onmouseout="this.style.color='var(--text-3)'">删除</button>` : ''}</div>`;
+  }).join('');
+}
+
+async function addComment(id) {
+  const input = document.getElementById(`comment-input-${id}`);
+            const content = input.value.trim();
+  if (!content) { if (window.notificationSystem) notificationSystem.warning('请输入评论内容'); return; }
+  const res = await fetch(`/api/posts/${id}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
+  if (res.status === 401) { if (window.notificationSystem) notificationSystem.warning('请先登录'); return; }
+  const data = await res.json();
+  if (!res.ok) { if (window.notificationSystem) notificationSystem.error(data.error || '评论失败'); return; }
+  input.value = ''; await loadComments(id);
+  const cnt = document.getElementById(`comments-count-${id}`);
+  if (cnt) cnt.innerText = parseInt(cnt.innerText || 0) + 1;
+  if (window.notificationSystem) notificationSystem.success('评论成功');
+}
+
+async function deleteComment(cid, pid) {
+  if (!confirm('确定要删除这条评论吗？')) return;
+  const res = await fetch(`/api/comments/${cid}`, { method: 'DELETE' });
+                const data = await res.json();
+  if (!res.ok) { if (window.notificationSystem) notificationSystem.error(data.error || '删除失败'); return; }
+  await loadComments(pid);
+  const cnt = document.getElementById(`comments-count-${pid}`);
+  if (cnt) cnt.innerText = Math.max(0, parseInt(cnt.innerText || 0) - 1);
+  if (window.notificationSystem) notificationSystem.success('删除成功');
+}
+
+async function deletePost(id) {
+  if (!confirm('确定要删除这条帖子吗？删除后无法恢复。')) return;
+  const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) { if (window.notificationSystem) notificationSystem.error(data.error || '删除失败'); return; }
+  const card = document.getElementById(`post-${id}`);
+  if (card) {
+    card.style.transition = 'opacity 0.3s, transform 0.3s';
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(-8px)';
+    setTimeout(() => card.remove(), 320);
+  }
+  if (window.notificationSystem) notificationSystem.success('帖子已删除');
+}
+
+async function deletePost(id) {
+  if (!confirm('确定要删除这条帖子吗？删除后无法恢复。')) return;
+  const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+  if (!res.ok) { if (window.notificationSystem) notificationSystem.error(data.error || '删除失败'); return; }
+  // 动画移除卡片
+  const card = document.getElementById(`post-${id}`);
+  if (card) {
+    card.style.transition = 'opacity 0.3s, transform 0.3s';
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(-8px)';
+    setTimeout(() => { card.remove(); }, 320);
+  }
+  if (window.notificationSystem) notificationSystem.success('帖子已删除');
+        }
+
+        window.onload = () => loadPosts(1);
+    </script>
+{% endblock %}

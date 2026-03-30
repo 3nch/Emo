@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}{{ error_title }} — 心愈 AI{% endblock %}
+{% block page_title %}{{ error_title }}{% endblock %}
+
+{% block content %}
+<div style="min-height:calc(100vh - 120px);display:flex;align-items:center;justify-content:center;padding:40px 24px;">
+  <div style="max-width:480px;width:100%;text-align:center;">
+
+    <div style="margin-bottom:28px;">
+      {% if error_code == 404 %}
+      <div style="width:96px;height:96px;border-radius:50%;background:var(--c-purple-bg);border:1px solid rgba(107,111,58,.25);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:40px;">🔭</div>
+      {% elif error_code == 500 %}
+      <div style="width:96px;height:96px;border-radius:50%;background:var(--c-red-bg);border:1px solid rgba(240,107,107,.25);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:40px;">⚠️</div>
+      {% elif error_code == 403 %}
+      <div style="width:96px;height:96px;border-radius:50%;background:var(--c-orange-bg);border:1px solid rgba(243,181,98,.25);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:40px;">🔐</div>
+      {% else %}
+      <div style="width:96px;height:96px;border-radius:50%;background:var(--c-primary-bg);border:1px solid rgba(49,87,44,.2);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:40px;">💫</div>
+      {% endif %}
+    </div>
+
+    <p style="font-size:64px;font-weight:800;color:var(--border);line-height:1;margin-bottom:-8px;letter-spacing:-4px;">{{ error_code }}</p>
+    <h1 style="font-size:22px;font-weight:800;color:var(--text-1);margin-bottom:10px;letter-spacing:-.03em;">{{ error_title }}</h1>
+    <p style="font-size:14px;color:var(--text-3);line-height:1.75;margin-bottom:32px;">{{ error_message }}</p>
+
+    <div class="card" style="padding:24px 28px;margin-bottom:28px;text-align:left;">
+      <p style="font-size:11px;font-weight:700;color:var(--text-4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;">您可以</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-2);">
+          <svg width="15" height="15" fill="none" stroke="var(--c-primary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>返回上一页并刷新
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-2);">
+          <svg width="15" height="15" fill="none" stroke="var(--c-primary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>使用侧边栏导航访问其他页面
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-2);">
+          <svg width="15" height="15" fill="none" stroke="var(--c-primary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>如有持续问题请联系技术支持
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button onclick="history.back()" class="btn btn-primary">返回上一页</button>
+      <a href="/" class="btn btn-ghost">回到首页</a>
+    </div>
+
+    <p style="margin-top:28px;font-size:11px;color:var(--text-4);">错误代码: {{ error_code }} · 心愈 AI 心理健康评估系统</p>
+  </div>
+</div>
+{% endblock %}

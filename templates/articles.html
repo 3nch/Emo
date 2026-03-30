@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}心理科普 — 心愈 AI{% endblock %}
+{% block page_title %}心理科普{% endblock %}
+
+{% block content %}
+<div style="padding:32px 28px 60px;">
+
+  <!-- 页头 -->
+  <div class="anim-fade-up" style="margin-bottom:40px;">
+    <div class="section-eyebrow">科学 · 权威 · 易懂</div>
+    <h1 class="heading-lg" style="margin-bottom:10px;">心理健康科普</h1>
+    <p style="font-size:14px;color:var(--text-2);">了解心理知识，关爱身心健康</p>
+  </div>
+
+  <!-- 分类筛选 -->
+  <div id="filter-btns" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:36px;" class="anim-fade-up delay-1">
+    <button onclick="filterArticles('')"       data-cat=""           class="btn btn-sm btn-primary">全部</button>
+    <button onclick="filterArticles('Depression')" data-cat="Depression" class="btn btn-sm btn-ghost">抑郁</button>
+    <button onclick="filterArticles('Anxiety')"    data-cat="Anxiety"    class="btn btn-sm btn-ghost">焦虑</button>
+    <button onclick="filterArticles('Sleep')"      data-cat="Sleep"      class="btn btn-sm btn-ghost">睡眠</button>
+    <button onclick="filterArticles('Pressure')"   data-cat="Pressure"   class="btn btn-sm btn-ghost">压力</button>
+    <button onclick="filterArticles('Social')"     data-cat="Social"     class="btn btn-sm btn-ghost">社交</button>
+    <button onclick="filterArticles('Self')"       data-cat="Self"       class="btn btn-sm btn-ghost">自我成长</button>
+  </div>
+
+  <!-- 文章网格 -->
+  <div id="articles-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;">
+    <div class="skeleton" style="height:180px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:180px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:180px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:180px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:180px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:180px;border-radius:var(--r-lg);"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+{% if session.get('user_id') %}
+sessionStorage.setItem('user_id', '{{ session.get("user_id") }}');
+{% endif %}
+
+const catNames  = { 'Depression':'抑郁','Anxiety':'焦虑','Sleep':'睡眠','Pressure':'压力','Social':'社交','Self':'自我成长' };
+const catStyle  = { 'Depression':'cat-depression','Anxiety':'cat-anxiety','Sleep':'cat-sleep','Pressure':'cat-pressure','Social':'cat-social','Self':'cat-self' };
+let allArticles = [];
+
+async function loadArticles() {
+  try {
+    const res = await fetch('/api/articles');
+    allArticles = await res.json();
+    renderArticles(allArticles);
+  } catch(e) {
+    document.getElementById('articles-grid').innerHTML =
+      '<div style="color:var(--c-red);text-align:center;padding:60px 0;grid-column:1/-1;">加载失败，请刷新重试</div>';
+  }
+}
+
+function filterArticles(cat) {
+  document.querySelectorAll('[data-cat]').forEach(b => {
+    b.className = (b.dataset.cat === cat) ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-ghost';
+  });
+  renderArticles(cat ? allArticles.filter(a => a.category === cat) : allArticles);
+}
+
+function renderArticles(articles) {
+  const g = document.getElementById('articles-grid');
+  if (!articles.length) {
+    g.innerHTML = '<div style="color:var(--text-3);text-align:center;padding:60px 0;grid-column:1/-1;">暂无文章</div>';
+    return;
+  }
+  g.innerHTML = articles.map((a, i) => `
+    <div onclick="location.href='/article/${a.id}'" class="card glass-card-hoverable anim-fade-up"
+         style="padding:26px;cursor:pointer;animation-delay:${i * 0.06}s;">
+      <span class="badge ${catStyle[a.category] || 'badge-aurora'}" style="margin-bottom:14px;display:inline-flex;">
+        ${catNames[a.category] || '科普'}
+      </span>
+      <h3 style="font-size:15px;font-weight:700;color:var(--text-1);margin-bottom:10px;line-height:1.45;">${a.title}</h3>
+      <p style="font-size:13px;color:var(--text-2);line-height:1.7;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
+        ${a.summary || '点击查看全文'}
+      </p>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:4px;font-size:13px;color:var(--c-primary);font-weight:600;">
+        阅读全文
+        <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+    </div>`).join('');
+}
+
+loadArticles();
+</script>
+{% endblock %}

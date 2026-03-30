@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — 心愈 AI{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block extra_head %}
+<style>
+.dash{padding:24px 24px 60px;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px;margin-bottom:22px;}
+.sc{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow-card);transition:all .18s;}
+.sc:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.sc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.sc-ico{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.sc-val{font-size:24px;font-weight:800;letter-spacing:-.04em;color:var(--text-1);line-height:1;margin-bottom:3px;}
+.sc-lbl{font-size:11px;color:var(--text-3);font-weight:500;}
+.badge-g{background:#ECFDF5;color:#059669;font-size:11px;font-weight:600;padding:2px 7px;border-radius:100px;}
+.badge-r{background:#FEF2F2;color:#DC2626;font-size:11px;font-weight:600;padding:2px 7px;border-radius:100px;}
+.mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:11px;margin-bottom:22px;}
+.mc{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;box-shadow:var(--shadow-card);transition:all .18s;text-decoration:none;display:block;}
+.mc:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:rgba(79,119,45,.35);}
+.mc-ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:9px;}
+.mc-name{font-size:12.5px;font-weight:700;color:var(--text-1);margin-bottom:2px;}
+.mc-desc{font-size:11px;color:var(--text-3);}
+.tbl-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-card);overflow:hidden;margin-bottom:22px;}
+.tbl-wrap table{width:100%;border-collapse:collapse;}
+.tbl-wrap th{padding:9px 14px;font-size:10.5px;font-weight:600;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border);text-align:left;}
+.tbl-wrap td{padding:11px 14px;font-size:12.5px;color:var(--text-2);border-bottom:1px solid var(--border);}
+.tbl-wrap tr:last-child td{border-bottom:none;}
+.tbl-wrap tr:hover td{background:#FAFBFC;}
+.ins{background:linear-gradient(135deg,#eef4e8,#f4f8ec);border:1px solid rgba(49,87,44,.15);border-radius:var(--r-lg);padding:18px 20px;display:flex;gap:14px;align-items:flex-start;margin-bottom:22px;}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
+.sh h2{font-size:14px;font-weight:700;color:var(--text-1);letter-spacing:-.02em;}
+.risk-tag{display:inline-flex;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dash">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;" class="anim-fade-up">
+    <div>
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:2px;">{% if session.get('user_id') %}Welcome back, {{ session.username }}{% else %}心愈 AI Platform{% endif %}</p>
+      <h1 style="font-size:20px;font-weight:800;color:var(--text-1);letter-spacing:-.03em;">Overview</h1>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="sc anim-fade-up">
+      <div class="sc-top"><div class="sc-ico" style="background:#EEF2FF;">👥</div><span class="badge-g">↑12%</span></div>
+      <div id="st-checkins" class="sc-val">—</div><div class="sc-lbl">Check-ins</div>
+    </div>
+    <div class="sc anim-fade-up delay-1">
+      <div class="sc-top"><div class="sc-ico" style="background:#ECFDF5;">📈</div><span class="badge-g">↑8%</span></div>
+      <div id="st-assess" class="sc-val">—</div><div class="sc-lbl">Assessments</div>
+    </div>
+    <div class="sc anim-fade-up delay-2">
+      <div class="sc-top"><div class="sc-ico" style="background:#FEF2F2;">⚠️</div><span class="badge-r">↓3%</span></div>
+      <div id="st-alerts" class="sc-val">—</div><div class="sc-lbl">High Risk</div>
+    </div>
+    <div class="sc anim-fade-up delay-3">
+      <div class="sc-top"><div class="sc-ico" style="background:#F5F3FF;">⚡</div><span class="badge-g">↑24%</span></div>
+      <div id="st-streak" class="sc-val">—</div><div class="sc-lbl">Streak Days</div>
+    </div>
+  </div>
+
+  <div class="ins anim-fade-up">
+    <div style="width:34px;height:34px;border-radius:8px;background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">✨</div>
+    <div style="flex:1;">
+      <p style="font-size:10.5px;font-weight:700;color:var(--c-primary);letter-spacing:.07em;text-transform:uppercase;margin-bottom:3px;">AI Insight</p>
+      <p style="font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:2px;">PHQ-9 · GAD-7 · Wav2Vec2 语音情绪识别六维心理画像</p>
+      <p style="font-size:12px;color:var(--text-3);">评估约需 5 分钟，数据加密，仅供本人查看。</p>
+    </div>
+    <a href="/detect" class="btn btn-primary btn-sm" style="flex-shrink:0;">Start Now</a>
+  </div>
+
+  <div class="anim-fade-up">
+    <div class="sh"><h2>系统模块</h2><span style="font-size:11px;color:var(--text-4);">Core Modules</span></div>
+    <div class="mod-grid">
+      <a href="/detect" class="mc"><div class="mc-ico" style="background:#EEF2FF;">🧭</div><div class="mc-name">PHQ-9 · GAD-7 · 六维心理画像评估</div><div class="mc-desc">Emotion Detection</div></a>
+      <a href="/soothe" class="mc"><div class="mc-ico" style="background:#ECFDF5;">💬</div><div class="mc-name">24h 情绪陪伴</div><div class="mc-desc">AI Assistant</div></a>
+      <a href="/report" class="mc"><div class="mc-ico" style="background:#F5F3FF;">📊</div><div class="mc-name">雷达图 · 多维报告</div><div class="mc-desc">Data Analysis</div></a>
+      <a href="/community" class="mc"><div class="mc-ico" style="background:#ECFEFF;">🤝</div><div class="mc-name">互助 · 匿名倾诉</div><div class="mc-desc">Community</div></a>
+      <a href="/articles" class="mc"><div class="mc-ico" style="background:#FFFBEB;">📖</div><div class="mc-name">心理科普 · 书籍</div><div class="mc-desc">Psychology Hub</div></a>
+      <a href="/profile" class="mc"><div class="mc-ico" style="background:#FEF2F2;">👤</div><div class="mc-name">个人中心 · 档案</div><div class="mc-desc">Profile</div></a>
+    </div>
+  </div>
+
+  <div class="anim-fade-up">
+    <div class="sh"><h2>Recent Records</h2><a href="/history" style="font-size:12px;color:var(--c-primary);font-weight:600;">View all →</a></div>
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Date</th><th>PHQ-9</th><th>GAD-7</th><th>Risk Level</th><th>Status</th></tr></thead>
+      <tbody id="rec-body"><tr><td colspan="5" style="text-align:center;padding:28px;"><div class="spinner" style="margin:0 auto;"></div></td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}{{ super() }}
+<script>
+{% if session.get('user_id') %}sessionStorage.setItem('uid','{{ session.get("user_id") }}');{% endif %}
+const riskTag=(r)=>r==='高风险'?'<span class="risk-tag" style="background:#FEF2F2;color:#DC2626;">High</span>':r==='中等风险'?'<span class="risk-tag" style="background:#FFFBEB;color:#D97706;">Medium</span>':'<span class="risk-tag" style="background:#ECFDF5;color:#059669;">Low</span>';
+async function init(){
+  try{
+    const [sr,hr]=await Promise.all([fetch('/api/stats'),fetch('/api/history')]);
+    if(sr.ok){const s=await sr.json();document.getElementById('st-checkins').textContent=s.total_checkins??'—';document.getElementById('st-assess').textContent=s.total_assessments??'—';document.getElementById('st-streak').textContent=(s.consecutive_days??'—')+(s.consecutive_days!=null?' d':'');document.getElementById('st-alerts').textContent=s.risk_distribution?.high??'0';}
+    if(hr.ok){const rec=await hr.json();const tb=document.getElementById('rec-body');if(!rec.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text-3);">暂无记录，<a href="/detect" style="color:var(--c-primary);">开始首次评估</a></td></tr>';return;}tb.innerHTML=rec.slice(0,8).map(r=>{const ds=formatBeijingDate(r.created_at);return'<tr><td style="color:var(--text-3);font-size:12px;">'+ds+'</td><td><strong>'+r.phq_score+'</strong></td><td><strong>'+r.anxiety_score+'</strong></td><td>'+riskTag(r.risk_level)+'</td><td><span class="risk-tag" style="background:#ECFDF5;color:#059669;">Completed</span></td></tr>';}).join('');}
+  }catch(e){console.error(e);}
+}
+window.onload=init;
+</script>
+{% endblock %}
