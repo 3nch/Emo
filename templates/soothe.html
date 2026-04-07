@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% block title %}AI情绪陪伴 — 心愈 AI{% endblock %}
+{% block page_title %}AI情绪陪伴{% endblock %}
+
+{% block extra_head %}
+<style>
+.chat-area { height: calc(100vh - 280px); overflow-y: auto; padding: 24px; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- SOS 按钮 -->
+<div style="position:fixed;bottom:28px;right:28px;z-index:200;">
+  <button onclick="document.getElementById('sos-modal').style.display='flex'"
+    style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#b91c1c);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 20px rgba(239,68,68,0.45);transition:transform .2s;"
+    onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+  </button>
+</div>
+
+<!-- SOS 弹窗 -->
+<div id="sos-modal" style="display:none;position:fixed;inset:0;background:rgba(31,42,68,0.7);backdrop-filter:blur(12px);z-index:300;align-items:center;justify-content:center;padding:24px;">
+  <div class="card" style="max-width:360px;width:100%;padding:40px;text-align:center;">
+    <div style="width:64px;height:64px;border-radius:50%;background:var(--c-red-bg);border:1px solid rgba(240,107,107,.3);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;">🆘</div>
+    <h3 style="font-size:18px;font-weight:800;color:var(--text-1);margin-bottom:8px;letter-spacing:-.03em;">需要帮助吗？</h3>
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:24px;line-height:1.7;">如果您正处于危机中，请立即寻求专业帮助</p>
+    <div style="display:flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:24px;">
+      <a href="tel:400-161-9995" style="display:block;padding:14px 18px;background:var(--c-red-bg);border:1px solid rgba(240,107,107,.25);border-radius:var(--r-md);text-decoration:none;">
+        <div style="font-weight:700;color:var(--c-red);font-size:14px;">全国心理援助热线</div>
+        <div style="color:var(--text-2);font-size:13px;margin-top:2px;">400-161-9995</div>
+      </a>
+      <a href="tel:010-8295-1332" style="display:block;padding:14px 18px;background:var(--c-primary-bg);border:1px solid rgba(49,87,44,.2);border-radius:var(--r-md);text-decoration:none;">
+        <div style="font-weight:700;color:var(--c-primary);font-size:14px;">北京心理危机干预中心</div>
+        <div style="color:var(--text-2);font-size:13px;margin-top:2px;">010-8295-1332</div>
+      </a>
+    </div>
+    <button onclick="document.getElementById('sos-modal').style.display='none'" class="btn btn-ghost" style="width:100%;">关闭</button>
+  </div>
+</div>
+
+<div style="padding:16px 28px 0;display:flex;gap:16px;height:calc(100vh - 120px);min-height:0;">
+
+  <!-- 侧边栏：对话历史 -->
+  <div class="card" style="width:220px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:12px;border-bottom:1px solid var(--border);">
+      <button onclick="startNewConversation()" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;">
+        <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> 新对话
+      </button>
+    </div>
+    <div id="conversation-list" style="flex:1;overflow-y:auto;padding:8px;"></div>
+    <div style="padding:12px;border-top:1px solid var(--border);">
+      <p style="font-size:10px;font-weight:700;color:var(--text-4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">情绪统计</p>
+      <div id="emotion-stats-list"><p style="font-size:12px;color:var(--text-3);text-align:center;">暂无数据</p></div>
+    </div>
+  </div>
+
+  <!-- 聊天主区 -->
+  <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="icon-box icon-box-blue" style="font-size:18px;">🗑️</div>
+        <div>
+          <h2 style="font-size:14px;font-weight:700;color:var(--text-1);letter-spacing:-.01em;">情绪垃圾桶</h2>
+          <p style="font-size:11px;color:var(--text-3);">此刻，我只是一个安静的倾听者</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <button onclick="loadConversationHistory()" style="font-size:12px;color:var(--text-3);background:none;border:none;cursor:pointer;">历史</button>
+        <button onclick="clearChat()" style="font-size:12px;color:var(--text-3);background:none;border:none;cursor:pointer;">清空</button>
+      </div>
+    </div>
+
+    <div id="chatBox" class="chat-area"></div>
+
+    <div style="padding:12px 16px;border-top:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input id="userInput" type="text" onkeypress="if(event.keyCode==13)sendMessage()" placeholder="输入你想说的话..." class="input-field" style="flex:1;">
+        <button id="voiceBtn" onclick="toggleVoice()"
+          style="width:42px;height:42px;border-radius:var(--r-sm);background:transparent;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-3);flex-shrink:0;transition:all var(--t-fast);">
+          <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+        </button>
+        <button onclick="sendMessage()"
+          style="width:42px;height:42px;border-radius:var(--r-sm);background:var(--c-primary);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:var(--shadow-blue);flex-shrink:0;transition:transform var(--t-fast);"
+          onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+          <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform:rotate(45deg)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        </button>
+      </div>
+      <p id="voice-status" style="font-size:11px;color:var(--text-3);text-align:center;margin-top:6px;display:none;"></p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+{% if session.get('user_id') %}sessionStorage.setItem('user_id','{{ session.get("user_id") }}');{% endif %}
+const chatBox = document.getElementById('chatBox');
+const userInput = document.getElementById('userInput');
+let currentConversationId = 'default';
+let recognition = null, isRecording = false;
+const emotionColors = { '平静':'#90a955','低落':'#31572c','焦虑':'#6b6f3a','压力大':'#a07c3a','自责':'#7a5c20','愤怒':'#c0392b' };
+const emotionClasses = { '平静':'emotion-calm','低落':'emotion-low','焦虑':'emotion-anxious','压力大':'emotion-stressed','自责':'emotion-self-blame','愤怒':'emotion-angry' };
+
+// 初始欢迎消息
+appendMessage('ai', '你好。我是心愈。检测结果只是一个数字，如果你现在觉得压力大、委屈或者单纯想发呆，都可以告诉我。我会在这里一直陪着你。');
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR(); recognition.lang = 'zh-CN'; recognition.interimResults = false;
+  recognition.onstart = () => { isRecording = true; document.getElementById('voiceBtn').style.background = 'var(--c-red)'; document.getElementById('voice-status').style.display = 'block'; document.getElementById('voice-status').textContent = '🔴 录音中...'; };
+  recognition.onresult = e => { userInput.value = e.results[0][0].transcript; document.getElementById('voice-status').textContent = '识别完成'; setTimeout(() => sendMessage(), 500); };
+  recognition.onerror = () => stopRec();
+  recognition.onend = () => stopRec();
+}
+function toggleVoice() {
+  if (!recognition) { if (window.notificationSystem) notificationSystem.warning('浏览器不支持语音识别，请使用Chrome'); return; }
+  isRecording ? recognition.stop() : recognition.start();
+}
+function stopRec() { isRecording = false; document.getElementById('voiceBtn').style.background = 'transparent'; document.getElementById('voice-status').style.display = 'none'; }
+
+function appendMessage(role, text, emotionLabel) {
+  const div = document.createElement('div');
+  div.style.cssText = `display:flex;gap:12px;margin-bottom:16px;${role === 'user' ? 'flex-direction:row-reverse;' : ''}`;
+  const avatar = role === 'ai'
+    ? `<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--c-primary),var(--c-green));display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;flex-shrink:0;">AI</div>`
+    : `<div style="width:34px;height:34px;border-radius:50%;background:var(--c-orange-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--c-orange-d);font-weight:700;flex-shrink:0;">我</div>`;
+  const emotionTag = role === 'user' && emotionLabel ? `<span class="emotion-tag ${emotionClasses[emotionLabel] || 'emotion-calm'}">${emotionLabel}</span>` : '';
+  div.innerHTML = `${avatar}<div class="${role === 'ai' ? 'bubble-ai' : 'bubble-user'}"><div>${text}</div>${emotionTag}</div>`;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function appendTyping() {
+  const id = 'typing-' + Date.now();
+  const div = document.createElement('div');
+  div.id = id; div.style.cssText = 'display:flex;gap:12px;margin-bottom:16px;';
+  div.innerHTML = `<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--c-primary),var(--c-green));display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;flex-shrink:0;">AI</div><div class="bubble-ai" style="display:flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--c-primary);animation:bounce .8s ease-in-out infinite;"></span><span style="width:6px;height:6px;border-radius:50%;background:var(--c-primary);animation:bounce .8s ease-in-out .16s infinite;"></span><span style="width:6px;height:6px;border-radius:50%;background:var(--c-primary);animation:bounce .8s ease-in-out .32s infinite;"></span></div>`;
+  chatBox.appendChild(div); chatBox.scrollTop = chatBox.scrollHeight;
+  return id;
+}
+
+async function sendMessage() {
+  const text = userInput.value.trim(); if (!text) return;
+  appendMessage('user', text);
+  userInput.value = '';
+  const typingId = appendTyping();
+  try {
+    const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, conversation_id: currentConversationId }) });
+    const data = await res.json();
+    document.getElementById(typingId)?.remove();
+    appendMessage('ai', data.reply);
+    loadEmotionStats();
+    loadConversationList();
+  } catch(e) {
+    document.getElementById(typingId)?.remove();
+    appendMessage('ai', '抱歉，我刚才走神了，能再说一遍吗？');
+  }
+}
+
+async function loadEmotionStats() {
+  try {
+    const res = await fetch('/api/emotion-stats'); if (!res.ok) return;
+    const data = await res.json();
+    const list = document.getElementById('emotion-stats-list');
+    if (!data.stats || !data.stats.length) { list.innerHTML = '<p style="font-size:12px;color:var(--text-3);text-align:center;">暂无数据</p>'; return; }
+    const total = data.stats.reduce((s, i) => s + i.count, 0);
+    list.innerHTML = data.stats.map(item => {
+      const pct = Math.round(item.count / total * 100);
+      const c = emotionColors[item.emotion] || '#9da8ba';
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:11px;color:${c};width:36px;flex-shrink:0;">${item.emotion}</span><div style="flex:1;height:3px;border-radius:100px;background:var(--border);"><div style="width:${pct}%;height:100%;background:${c};border-radius:100px;"></div></div><span style="font-size:10px;color:var(--text-3);">${item.count}</span></div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function loadConversationList() {
+  try {
+    const res = await fetch('/api/dialogue/conversations');
+    const convs = await res.json();
+    const el = document.getElementById('conversation-list');
+    if (!convs.length) { el.innerHTML = '<div class="conv-item active" onclick="switchConversation(\'default\')"><p style="font-size:13px;color:var(--text-1);">当前对话</p></div>'; return; }
+    el.innerHTML = convs.map(c => `<div class="conv-item ${c.conversation_id === currentConversationId ? 'active' : ''}" onclick="switchConversation('${c.conversation_id}')"><p style="font-size:13px;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.title || '新对话'}</p><p style="font-size:11px;color:var(--text-3);">${c.message_count} 条消息</p></div>`).join('');
+  } catch(e) {}
+}
+
+async function switchConversation(id) {
+  currentConversationId = id; chatBox.innerHTML = '';
+  try {
+    const res = await fetch(`/api/dialogue/history?conversation_id=${id}`);
+    const history = await res.json();
+    if (!history.length) appendMessage('ai', '你好。我是心愈。我会在这里一直陪着你。');
+    else history.forEach(m => appendMessage(m.role === 'user' ? 'user' : 'ai', m.message, m.emotion_label));
+  } catch(e) { appendMessage('ai', '你好。我是心愈。我会在这里一直陪着你。'); }
+  loadConversationList();
+}
+
+async function startNewConversation() {
+  try {
+    const res = await fetch('/api/dialogue/conversations', { method: 'POST' });
+    const data = await res.json();
+    if (data.conversation_id) { currentConversationId = data.conversation_id; chatBox.innerHTML = ''; appendMessage('ai', '新的对话已开始。我在这里倾听你。'); loadConversationList(); }
+  } catch(e) {}
+}
+
+async function loadConversationHistory() {
+  try {
+    const res = await fetch(`/api/dialogue/history?conversation_id=${currentConversationId}`);
+    const history = await res.json();
+    if (!history.length) { if (window.notificationSystem) notificationSystem.info('当前会话暂无历史记录'); return; }
+    chatBox.innerHTML = '';
+    history.forEach(m => appendMessage(m.role === 'user' ? 'user' : 'ai', m.message, m.emotion_label));
+  } catch(e) {}
+}
+
+function clearChat() {
+  if (!confirm('确定要清空当前对话吗？')) return;
+  fetch('/api/dialogue/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: currentConversationId }) })
+    .then(() => { chatBox.innerHTML = ''; appendMessage('ai', '对话已清空。如果你准备好了，我们可以重新开始。'); loadEmotionStats(); });
+}
+
+(function init() { loadConversationList(); loadEmotionStats(); })();
+</script>
+{% endblock %}

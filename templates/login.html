@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>登录 — 心愈 AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+body{background:#F8F9FB;}
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.auth-panel{display:flex;width:100%;max-width:880px;min-height:540px;border-radius:var(--r-2xl);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow-lg);}
+.auth-left{flex:1;background:linear-gradient(145deg,#132a13 0%,#31572c 50%,#4f772d 100%);padding:44px 40px;display:flex;flex-direction:column;justify-content:space-between;color:#fff;min-width:0;position:relative;overflow:hidden;}
+.auth-left::before{content:'';position:absolute;top:-80px;right:-80px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,0.08);pointer-events:none;}
+.auth-left::after{content:'';position:absolute;bottom:-60px;left:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none;}
+.auth-right{width:400px;flex-shrink:0;background:#fff;padding:44px 40px;display:flex;flex-direction:column;justify-content:center;}
+.feat{display:flex;align-items:flex-start;gap:11px;margin-bottom:18px;}
+.feat-ico{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+@media(max-width:680px){.auth-panel{flex-direction:column;max-width:420px;min-height:auto;}.auth-left{display:none;}.auth-right{width:100%;padding:36px 28px;}}
+</style>
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-panel">
+    <div class="auth-left">
+      <div>
+        <a href="/" style="display:flex;align-items:center;gap:9px;color:#fff;text-decoration:none;margin-bottom:40px;">
+          <div style="width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:13px;">🌿</div>
+          <span style="font-size:15px;font-weight:700;letter-spacing:-.02em;">心愈 AI</span>
+        </a>
+        <h2 style="font-size:26px;font-weight:800;line-height:1.2;margin-bottom:12px;letter-spacing:-.03em;">您的 AI<br>心理健康伙伴</h2>
+        <p style="font-size:13px;opacity:0.75;line-height:1.75;margin-bottom:32px;">基于 PHQ-9、GAD-7 标准量表与 Wav2Vec2 语音情绪识别，提供多维度心理健康评估与全程 AI 陪伴支持。</p>
+        <div class="feat"><div class="feat-ico">📊</div><div><p style="font-weight:700;font-size:13px;margin-bottom:1px;">六维度评估体系</p><p style="font-size:12px;opacity:0.65;">抑郁·焦虑·睡眠·压力·社交·自我</p></div></div>
+        <div class="feat"><div class="feat-ico">🎙️</div><div><p style="font-weight:700;font-size:13px;margin-bottom:1px;">AI 语音情绪识别</p><p style="font-size:12px;opacity:0.65;">Wav2Vec2 深度学习模型</p></div></div>
+        <div class="feat"><div class="feat-ico">💬</div><div><p style="font-weight:700;font-size:13px;margin-bottom:1px;">24小时情绪陪伴</p><p style="font-size:12px;opacity:0.65;">AI 倾听、安抚、引导</p></div></div>
+      </div>
+      <p style="font-size:11px;opacity:0.5;padding-top:24px;border-top:1px solid rgba(255,255,255,0.15);">数据加密存储 · 隐私严格保护 · 完全免费</p>
+    </div>
+    <div class="auth-right">
+      <div style="margin-bottom:28px;">
+        <h1 style="font-size:22px;font-weight:800;color:var(--text-1);margin-bottom:5px;letter-spacing:-.03em;">欢迎回来</h1>
+        <p style="font-size:13px;color:var(--text-3);">登录您的心愈 AI 账号</p>
+      </div>
+      {% with messages = get_flashed_messages() %}{% if messages %}{% for m in messages %}
+      <div style="background:var(--c-red-bg);border:1px solid rgba(239,68,68,0.2);color:var(--c-red);padding:10px 13px;border-radius:var(--r-md);font-size:13px;margin-bottom:16px;">{{ m }}</div>
+      {% endfor %}{% endif %}{% endwith %}
+      <form action="/login" method="POST" style="display:flex;flex-direction:column;gap:14px;">
+        <div><label class="form-label">用户名</label><input type="text" name="username" required class="input-field" placeholder="请输入用户名"></div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label class="form-label" style="margin-bottom:0;">密码</label><a href="#" style="font-size:11px;color:var(--c-primary);">忘记密码？</a></div>
+          <input type="password" name="password" required class="input-field" placeholder="请输入密码">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;">立即登录</button>
+      </form>
+      <div style="display:flex;align-items:center;gap:10px;margin:20px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="font-size:11px;color:var(--text-4);">或</span><div style="flex:1;height:1px;background:var(--border);"></div></div>
+      <p style="text-align:center;font-size:13px;color:var(--text-2);">还没有账号？ <a href="/register" style="color:var(--c-primary);font-weight:700;">免费注册</a></p>
+      <p style="text-align:center;margin-top:20px;font-size:11px;color:var(--text-4);">登录即表示同意 <a href="#" style="color:var(--text-3);">服务条款</a> 与 <a href="#" style="color:var(--text-3);">隐私政策</a></p>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+</body></html>

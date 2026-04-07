@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}{{ article.title }} — 心愈 AI{% endblock %}
+{% block page_title %}心理科普{% endblock %}
+
+{% block content %}
+<div style="padding:32px 28px 60px; max-width:800px;">
+
+  <!-- 返回 -->
+  <a href="/articles" class="btn btn-ghost btn-sm anim-fade-up" style="margin-bottom:28px;display:inline-flex;">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    返回文章列表
+  </a>
+
+  <!-- 文章主体 -->
+  <article class="card anim-fade-up delay-1" style="padding:40px;">
+
+    <!-- 分类标签 -->
+    <div style="margin-bottom:20px;">
+      {% set cat_cls = {
+        'Depression': 'cat-depression',
+        'Anxiety':    'cat-anxiety',
+        'Sleep':      'cat-sleep',
+        'Pressure':   'cat-pressure',
+        'Social':     'cat-social',
+        'Self':       'cat-self'
+      } %}
+      {% set cat_names = {
+        'Depression': '抑郁',
+        'Anxiety':    '焦虑',
+        'Sleep':      '睡眠',
+        'Pressure':   '压力',
+        'Social':     '社交',
+        'Self':       '自我成长'
+      } %}
+      <span class="badge {{ cat_cls.get(article.category, 'badge-aurora') }}">
+        {{ cat_names.get(article.category, '科普') }}
+      </span>
+    </div>
+
+    <h1 style="font-size:clamp(20px,3vw,28px);font-weight:800;color:var(--text-1);line-height:1.3;margin-bottom:16px;letter-spacing:-.03em;">{{ article.title }}</h1>
+
+    {% if article.summary %}
+    <p style="font-size:15px;color:var(--text-3);line-height:1.75;margin-bottom:28px;padding-bottom:28px;border-bottom:1px solid var(--border);font-style:italic;">{{ article.summary }}</p>
+    {% endif %}
+
+    <div style="font-size:15px;color:var(--text-2);line-height:1.85;white-space:pre-line;">{{ article.content }}</div>
+  </article>
+
+  <!-- 推荐阅读 -->
+  <div class="anim-fade-up delay-2" style="margin-top:40px;">
+    <div class="section-eyebrow" style="margin-bottom:16px;">Related Reading</div>
+    <h3 style="font-size:18px;font-weight:700;color:var(--text-1);margin-bottom:20px;">推荐阅读</h3>
+    <div id="related-articles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;">
+      <div class="skeleton" style="height:80px;border-radius:var(--r-lg);"></div>
+      <div class="skeleton" style="height:80px;border-radius:var(--r-lg);"></div>
+      <div class="skeleton" style="height:80px;border-radius:var(--r-lg);"></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+const catNames = {
+  'Depression':'抑郁','Anxiety':'焦虑','Sleep':'睡眠',
+  'Pressure':'压力','Social':'社交','Self':'自我成长'
+};
+const catCls = {
+  'Depression':'cat-depression','Anxiety':'cat-anxiety','Sleep':'cat-sleep',
+  'Pressure':'cat-pressure','Social':'cat-social','Self':'cat-self'
+};
+
+async function loadRelated() {
+  try {
+    const res = await fetch('/api/articles');
+    const articles = await res.json();
+    const others = articles.filter(a => a.id !== {{ article.id }}).slice(0, 4);
+    const container = document.getElementById('related-articles');
+    if (!others.length) {
+      container.innerHTML = '<p style="color:var(--text-3);font-size:14px;">暂无推荐文章</p>';
+      return;
+    }
+    container.innerHTML = others.map((a, i) => `
+      <div onclick="location.href='/article/${a.id}'" class="card glass-card-hoverable anim-fade-up" style="padding:20px;cursor:pointer;animation-delay:${i*0.07}s;">
+        <span class="badge ${catCls[a.category] || 'badge-aurora'}" style="margin-bottom:10px;display:inline-flex;">${catNames[a.category] || '科普'}</span>
+        <h4 style="font-size:14px;font-weight:700;color:var(--text-1);line-height:1.4;">${a.title}</h4>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('related-articles').innerHTML = '';
+  }
+}
+
+{% if session.get('user_id') %}
+sessionStorage.setItem('user_id', '{{ session.get("user_id") }}');
+{% endif %}
+
+loadRelated();
+</script>
+{% endblock %}

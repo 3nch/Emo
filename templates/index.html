@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>心愈 AI · 首页</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;min-height:100%}
+body{
+  font-family:'Noto Sans SC',sans-serif;
+  color:#173118;
+  background:#f7f8f2;
+  overflow-x:hidden;
+}
+.home{
+  min-height:100vh;
+  position:relative;
+  overflow:hidden;
+  background:
+    linear-gradient(180deg,#365f31 0%,#6f963e 14%,#a6c561 34%,#dce88c 58%,#eef2bb 100%);
+}
+.top-ribbon{
+  position:relative;
+  z-index:3;
+  height:22px;
+  background:linear-gradient(90deg,#132a13,#31572c,#4f772d);
+  color:#fff;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.06em;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-transform:uppercase;
+}
+.hero-bg{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+}
+.hero-sun{
+  position:absolute;
+  width:48vw;
+  height:48vw;
+  min-width:420px;
+  min-height:420px;
+  right:-8vw;
+  top:10vh;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(236,243,158,.76), rgba(236,243,158,.18) 42%, rgba(236,243,158,0) 66%);
+  animation:pulseSun 7s ease-in-out infinite;
+}
+.hero-sun.small{
+  width:18vw;
+  height:18vw;
+  min-width:180px;
+  min-height:180px;
+  left:-4vw;
+  top:28vh;
+  opacity:.55;
+  animation-delay:-2.4s;
+}
+@keyframes pulseSun{
+  0%,100%{transform:scale(1) translateY(0)}
+  50%{transform:scale(1.06) translateY(-8px)}
+}
+.noodle,
+.noodle::before,
+.noodle::after{
+  position:absolute;
+  border-radius:999px;
+  border:2px solid rgba(73,114,39,.22);
+}
+.noodle{
+  width:220px;
+  height:220px;
+  right:11%;
+  top:18%;
+  border-color:rgba(82,121,42,.16);
+  border-left-color:transparent;
+  border-bottom-color:transparent;
+  transform:rotate(22deg);
+  animation:spinSlow 18s linear infinite;
+}
+.noodle::before{
+  content:"";
+  inset:18px;
+  border-color:rgba(115,148,59,.22);
+  border-right-color:transparent;
+  border-top-color:transparent;
+}
+.noodle::after{
+  content:"";
+  inset:42px;
+  border-color:rgba(236,243,158,.44);
+  border-left-color:transparent;
+  border-bottom-color:transparent;
+}
+@keyframes spinSlow{from{transform:rotate(22deg)}to{transform:rotate(382deg)}}
+.spark{
+  position:absolute;
+  width:14px;
+  height:14px;
+  border-radius:4px;
+  background:#31572c;
+  opacity:.18;
+  animation:floatBits 10s ease-in-out infinite;
+}
+.spark.s1{left:18%;top:24%;transform:rotate(18deg)}
+.spark.s2{right:16%;top:66%;background:#90a955}
+.spark.s3{left:48%;top:16%;background:#fff7d6;opacity:.62}
+.spark.s4{left:72%;top:26%;background:#4f772d}
+.spark.s5{left:12%;bottom:16%;background:#2f5d20}
+@keyframes floatBits{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-12px) rotate(18deg)}}
+.shell{
+  position:relative;
+  z-index:2;
+  max-width:1380px;
+  margin:0 auto;
+  padding:18px 28px 28px;
+  min-height:calc(100vh - 22px);
+  display:flex;
+  flex-direction:column;
+}
+.nav{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  padding-bottom:18px;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-shrink:0;
+}
+.brand-mark{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:44px;
+  line-height:.85;
+  color:#fffaf0;
+  text-shadow:0 4px 18px rgba(69,34,0,.1);
+}
+.brand-sub{
+  font-size:11px;
+  font-weight:700;
+  color:#31572c;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.nav-links{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+.nav-links a{
+  padding:9px 13px;
+  border-radius:999px;
+  font-size:14px;
+  font-weight:800;
+  color:#31572c;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+  transition:transform .18s ease, background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.nav-links a:hover{
+  background:rgba(255,255,255,.34);
+  color:#173118;
+  transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(49,87,44,.12);
+}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.icon-pill{
+  width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.5);color:#31572c;font-size:14px;font-weight:700;
+  transition:transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.icon-pill:hover{
+  transform:translateY(-2px) scale(1.04);
+  background:#fffdf5;
+  box-shadow:0 12px 24px rgba(49,87,44,.15);
+}
+.hero{
+  flex:1;
+  display:grid;
+  grid-template-columns:1.02fr .98fr;
+  align-items:center;
+  gap:10px;
+  padding:18px 0 8px;
+}
+.hero-visual{
+  position:relative;
+  min-height:560px;
+}
+.pack,
+.floating-card{
+  position:absolute;
+  border-radius:30px;
+  box-shadow:0 30px 60px rgba(71,75,17,.16);
+}
+.pack{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  color:#203018;
+  overflow:hidden;
+  transform-origin:center;
+  transition:transform .24s ease, box-shadow .24s ease, filter .24s ease;
+}
+.pack:hover{
+  box-shadow:0 36px 70px rgba(49,87,44,.22);
+  filter:saturate(106%);
+}
+.pack::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 30%,rgba(0,0,0,.06));
+  pointer-events:none;
+}
+.pack-main{
+  left:2%;
+  top:10%;
+  width:250px;
+  height:360px;
+  padding:26px 22px;
+  background:linear-gradient(180deg,#f6f7d4 0%,#cfe38a 52%,#90a955 100%);
+  transform:rotate(-16deg);
+  animation:packFloatA 6.8s ease-in-out infinite;
+}
+.pack-main .kicker,
+.pack-small .kicker,
+.pack-mini .kicker{
+  position:relative;
+  z-index:1;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  opacity:.75;
+}
+.pack-main .title,
+.pack-small .title,
+.pack-mini .title{
+  position:relative;
+  z-index:1;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:50px;
+  line-height:.88;
+  color:#31572c;
+}
+.pack-main .footer,
+.pack-small .footer,
+.pack-mini .footer{
+  position:relative;
+  z-index:1;
+  font-size:12px;
+  font-weight:700;
+}
+.pack-small{
+  left:40%;
+  bottom:6%;
+  width:220px;
+  height:290px;
+  padding:22px 18px;
+  background:linear-gradient(180deg,#eff5dc 0%,#c5db86 100%);
+  transform:rotate(-12deg);
+  animation:packFloatB 8s ease-in-out infinite;
+}
+.pack-small .title{color:#4f772d;font-size:44px}
+.pack-mini{
+  right:-1%;
+  bottom:10%;
+  width:160px;
+  height:220px;
+  padding:16px 14px;
+  background:linear-gradient(180deg,#edf39f 0%,#9db862 100%);
+  transform:rotate(14deg);
+  animation:packFloatC 6s ease-in-out infinite;
+}
+.pack-mini .title{color:#173118;font-size:34px}
+@keyframes packFloatA{0%,100%{transform:rotate(-16deg) translateY(0)}50%{transform:rotate(-14deg) translateY(-16px)}}
+@keyframes packFloatB{0%,100%{transform:rotate(-12deg) translateY(0)}50%{transform:rotate(-9deg) translateY(-12px)}}
+@keyframes packFloatC{0%,100%{transform:rotate(14deg) translateY(0)}50%{transform:rotate(11deg) translateY(-14px)}}
+.grain{
+  position:absolute;
+  width:18px;height:18px;border-radius:8px;background:#7a4d15;
+  box-shadow:14px 10px 0 #9f6722,-10px 18px 0 #8b5a1a,22px -8px 0 #6f4310;
+  opacity:.5;
+  filter:blur(.2px);
+  animation:grainFloat 8s ease-in-out infinite;
+}
+.grain.g1{left:24%;top:18%}
+.grain.g2{left:34%;top:28%;animation-delay:-2s}
+.grain.g3{left:17%;top:42%;animation-delay:-3s}
+.grain.g4{left:56%;top:16%;animation-delay:-1.5s}
+.grain.g5{right:10%;top:36%;animation-delay:-4s}
+.grain.g6{right:20%;bottom:12%;animation-delay:-2.6s}
+@keyframes grainFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-10px) rotate(10deg)}}
+.hero-copy{
+  padding-left:10px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+}
+.hero-copy .eyebrow{
+  display:inline-flex;
+  padding:7px 12px;
+  border-radius:999px;
+  background:rgba(255,255,255,.42);
+  color:#31572c;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.headline-hover-zone{
+  position:relative;
+  margin:18px 0 10px;
+  display:inline-block;
+  padding:10px 16px 12px 8px;
+  border-radius:26px;
+  --mx:50%;
+  --my:50%;
+}
+.headline-glow{
+  position:absolute;
+  inset:-6% -2%;
+  border-radius:30px;
+  background:radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,.5), rgba(236,243,158,.16) 22%, rgba(255,255,255,0) 58%);
+  opacity:0;
+  transform:scale(.96);
+  transition:opacity .2s ease, transform .2s ease;
+  pointer-events:none;
+}
+.headline-text{
+  position:relative;
+  z-index:1;
+}
+.hero-copy h1{
+  margin:0;
+  max-width:8.2ch;
+  font-size:76px;
+  line-height:.93;
+  letter-spacing:-.06em;
+  font-weight:900;
+  color:#173118;
+}
+.headline-line{
+  display:block;
+  transition:transform .22s ease, color .22s ease, text-shadow .22s ease;
+}
+.headline-hover-zone:hover .headline-glow{
+  opacity:1;
+  transform:scale(1);
+}
+.headline-hover-zone:hover .headline-line{
+  transform:translateX(4px);
+  color:#274820;
+  text-shadow:0 10px 24px rgba(236,243,158,.34);
+}
+.headline-hover-zone:hover .headline-line:nth-child(2){transform:translateX(-3px)}
+.headline-hover-zone:hover .headline-line:nth-child(3){transform:translateX(6px)}
+.hero-copy p{
+  margin:0 0 22px;
+  max-width:24ch;
+  font-size:17px;
+  line-height:1.7;
+  color:#31572c;
+  font-weight:500;
+}
+.cta-row{display:flex;gap:14px;flex-wrap:wrap}
+.cta-pill{
+  min-width:196px;
+  height:56px;
+  padding:0 24px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#fffdf5;
+  color:#31572c;
+  font-size:14px;
+  font-weight:900;
+  text-transform:uppercase;
+  box-shadow:0 16px 28px rgba(49,87,44,.12);
+  transition:transform .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+}
+.cta-pill:hover{
+  transform:translateY(-3px) scale(1.01);
+  box-shadow:0 22px 36px rgba(49,87,44,.18);
+  background:#ffffff;
+}
+.cta-pill.alt{
+  background:rgba(255,255,255,.58);
+  color:#173118;
+}
+.cta-pill.alt:hover{
+  background:rgba(255,255,255,.82);
+}
+.mini-bar{
+  margin-top:24px;
+  display:inline-flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.mini-badge{
+  padding:8px 12px;
+  border-radius:999px;
+  background:rgba(255,255,255,.38);
+  color:#31572c;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.06em;
+  transition:transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.mini-badge:hover{
+  transform:translateY(-2px);
+  background:rgba(255,255,255,.62);
+  box-shadow:0 10px 20px rgba(49,87,44,.10);
+}
+@media (max-width:1100px){
+  .hero{grid-template-columns:1fr;gap:0}
+  .hero-visual{min-height:460px}
+  .hero-copy{padding:0 0 16px}
+  .hero-copy h1{max-width:none;font-size:64px}
+}
+@media (max-width:760px){
+  .shell{padding:14px 14px 20px}
+  .nav{align-items:flex-start;flex-direction:column}
+  .nav-links{justify-content:flex-start}
+  .hero-visual{min-height:380px}
+  .pack-main{width:180px;height:270px;padding:18px 16px}
+  .pack-main .title{font-size:38px}
+  .pack-small{width:160px;height:210px;left:42%}
+  .pack-small .title{font-size:30px}
+  .pack-mini{width:118px;height:166px}
+  .pack-mini .title{font-size:24px}
+  .hero-copy h1{font-size:48px}
+  .hero-copy p{font-size:15px}
+  .cta-pill{min-width:unset;width:100%}
+}
+</style>
+</head>
+<body>
+<div class="home">
+  <div class="top-ribbon">心愈 AI · 情绪检测 · AI 陪伴 · 个人成长记录</div>
+
+  <div class="hero-bg" aria-hidden="true">
+    <div class="hero-sun"></div>
+    <div class="hero-sun small"></div>
+    <div class="noodle"></div>
+    <span class="spark s1"></span>
+    <span class="spark s2"></span>
+    <span class="spark s3"></span>
+    <span class="spark s4"></span>
+    <span class="spark s5"></span>
+    <span class="spark s6"></span>
+  </div>
+
+  <div class="shell">
+    <header class="nav">
+      <div class="brand">
+        <div>
+          <div class="brand-mark">HEAL<br>SPACE</div>
+          <div class="brand-sub">心愈 AI</div>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a href="/detect">情绪检测</a>
+        <a href="/soothe">情绪安抚</a>
+        <a href="/report">评估报告</a>
+        <a href="/articles">心理科普</a>
+        <a href="/community">互助社区</a>
+        <a href="/profile">个人中心</a>
+      </nav>
+
+      <div class="nav-right">
+        {% if session.get('user_id') %}
+        <a href="/profile" class="icon-pill">👤</a>
+        <a href="/logout" class="icon-pill">↗</a>
+        {% else %}
+        <a href="/login" class="icon-pill">登</a>
+        <a href="/register" class="icon-pill">注</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="hero">
+      <section class="hero-visual">
+        <div class="grain g1"></div>
+        <div class="grain g2"></div>
+        <div class="grain g3"></div>
+        <div class="grain g4"></div>
+        <div class="grain g5"></div>
+        <div class="grain g6"></div>
+
+        <article class="pack pack-main">
+          <div class="kicker">Mood Check</div>
+          <div class="title">Emotion Scan</div>
+          <div class="footer">量表 · 语音 · 视觉</div>
+        </article>
+
+        <article class="pack pack-small">
+          <div class="kicker">AI Care</div>
+          <div class="title">Talk Softly</div>
+          <div class="footer">即时安抚与陪伴</div>
+        </article>
+
+        <article class="pack pack-mini">
+          <div class="kicker">Report</div>
+          <div class="title">Track</div>
+          <div class="footer">成长记录</div>
+        </article>
+      </section>
+
+      <section class="hero-copy">
+        <span class="eyebrow">重新认识你的情绪空间</span>
+        <div class="headline-hover-zone" id="headline-hover-zone">
+          <div class="headline-glow"></div>
+          <div class="headline-text">
+            <h1>
+              <span class="headline-line">把情绪照顾</span>
+              <span class="headline-line">这件事，做得</span>
+              <span class="headline-line">更轻、更近一点。</span>
+            </h1>
+          </div>
+        </div>
+        <p>检测、陪伴、报告与记录，被整合成一个更有品牌感的心理健康入口。</p>
+
+        <div class="cta-row">
+          <a class="cta-pill" href="/detect">开始检测</a>
+          <a class="cta-pill alt" href="/soothe">和 AI 聊聊</a>
+        </div>
+
+        <div class="mini-bar">
+          <span class="mini-badge">多维评估</span>
+          <span class="mini-badge">AI 陪伴</span>
+          <span class="mini-badge">报告可视化</span>
+          <span class="mini-badge">长期记录</span>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  const zone = document.getElementById('headline-hover-zone');
+  if (!zone) return;
+
+  zone.addEventListener('mousemove', (e) => {
+    const rect = zone.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    zone.style.setProperty('--mx', `${x}%`);
+    zone.style.setProperty('--my', `${y}%`);
+  });
+})();
+</script>
+</body>
+</html>

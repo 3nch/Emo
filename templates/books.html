@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}书籍推荐 — 心愈 AI{% endblock %}
+{% block page_title %}书籍推荐{% endblock %}
+
+{% block content %}
+<div style="padding:32px 28px 60px;max-width:1100px;">
+
+  <!-- 页头 -->
+  <div class="anim-fade-up" style="margin-bottom:40px;">
+    <div class="section-eyebrow">Reading List</div>
+    <h1 class="heading-lg" style="margin-bottom:10px;">心理健康书单</h1>
+    <p style="font-size:14px;color:var(--text-2);">精选书籍，阅读是心灵的良药</p>
+  </div>
+
+  <!-- 分类筛选 -->
+  <div id="filter-btns" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:36px;" class="anim-fade-up delay-1">
+    <button onclick="filterBooks('all')" data-cat="all" class="btn btn-sm btn-primary">全部书籍</button>
+    <button onclick="filterBooks('抑郁')" data-cat="抑郁" class="btn btn-sm btn-ghost">抑郁</button>
+    <button onclick="filterBooks('焦虑')" data-cat="焦虑" class="btn btn-sm btn-ghost">焦虑</button>
+    <button onclick="filterBooks('压力')" data-cat="压力" class="btn btn-sm btn-ghost">压力</button>
+    <button onclick="filterBooks('自我成长')" data-cat="自我成长" class="btn btn-sm btn-ghost">自我成长</button>
+    <button onclick="filterBooks('情绪管理')" data-cat="情绪管理" class="btn btn-sm btn-ghost">情绪管理</button>
+  </div>
+
+  <!-- 书籍网格 -->
+  <div id="books-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;">
+    <div class="skeleton" style="height:220px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:220px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:220px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:220px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:220px;border-radius:var(--r-lg);"></div>
+    <div class="skeleton" style="height:220px;border-radius:var(--r-lg);"></div>
+  </div>
+
+  <!-- 空状态 -->
+  <div id="empty-state" class="hidden" style="text-align:center;padding:80px 0;">
+    <div style="font-size:56px;margin-bottom:20px;">📚</div>
+    <h3 style="font-size:18px;font-weight:800;color:var(--text-1);margin-bottom:10px;letter-spacing:-.02em;">暂无相关书籍</h3>
+    <p style="font-size:14px;color:var(--text-3);">我们正在准备更多优质内容</p>
+  </div>
+</div>
+
+<!-- 书籍详情弹窗 -->
+<div id="book-modal" class="hidden" style="position:fixed;inset:0;background:rgba(31,42,68,0.45);backdrop-filter:blur(8px);z-index:300;display:none;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--bg-card);border-radius:var(--r-xl);padding:36px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);position:relative;">
+    <button onclick="closeBookModal()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--text-3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">✕</button>
+    <div style="display:flex;gap:24px;margin-bottom:24px;">
+      <div id="modal-cover" style="width:100px;height:140px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--c-primary-bg),var(--c-green-bg));display:flex;align-items:center;justify-content:center;font-size:40px;flex-shrink:0;">📖</div>
+      <div style="flex:1;min-width:0;">
+        <h2 id="modal-title" style="font-size:18px;font-weight:700;color:var(--text-1);margin-bottom:8px;line-height:1.35;"></h2>
+        <p id="modal-author" style="font-size:13px;color:var(--text-3);margin-bottom:10px;"></p>
+        <span id="modal-category" class="badge badge-blue"></span>
+      </div>
+    </div>
+    <p id="modal-description" style="font-size:14px;color:var(--text-2);line-height:1.75;margin-bottom:24px;"></p>
+    <a id="modal-link" href="#" target="_blank" class="btn btn-primary" style="width:100%;justify-content:center;">查看详情</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let allBooks = [];
+
+async function loadBooks() {
+  try {
+    const res = await fetch('/api/books');
+    allBooks = await res.json();
+    renderBooks(allBooks);
+  } catch (e) {
+    document.getElementById('books-grid').innerHTML = '<div style="color:var(--c-red);text-align:center;padding:60px 0;grid-column:1/-1;">加载失败，请刷新重试</div>';
+  }
+}
+
+function filterBooks(cat) {
+  document.querySelectorAll('[data-cat]').forEach(b => {
+    const active = b.dataset.cat === cat;
+    b.className = active ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-ghost';
+  });
+  renderBooks(cat === 'all' ? allBooks : allBooks.filter(b => b.category === cat));
+}
+
+function renderBooks(books) {
+  const grid = document.getElementById('books-grid');
+  const empty = document.getElementById('empty-state');
+  if (!books.length) {
+    grid.style.display = 'none';
+    empty.classList.remove('hidden');
+    return;
+  }
+  grid.style.display = 'grid';
+  empty.classList.add('hidden');
+  grid.innerHTML = books.map((book, i) => `
+    <div class="card glass-card-hoverable anim-fade-up" style="padding:24px;cursor:pointer;animation-delay:${i*0.05}s;" onclick="showBookModal(${book.id})">
+      <div style="display:flex;gap:16px;margin-bottom:16px;">
+        <div style="width:64px;height:88px;border-radius:var(--r-sm);background:linear-gradient(135deg,var(--c-primary-bg),var(--c-green-bg));display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">📚</div>
+        <div style="flex:1;min-width:0;">
+          <h3 style="font-size:15px;font-weight:700;color:var(--text-1);margin-bottom:4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${escHtml(book.title)}</h3>
+          <p style="font-size:12px;color:var(--text-3);margin-bottom:8px;">${escHtml(book.author || '未知作者')}</p>
+          <span class="badge badge-blue">${book.category || '通用'}</span>
+          ${book.is_featured ? '<span class="badge badge-orange" style="margin-left:4px;">推荐</span>' : ''}
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--text-2);line-height:1.7;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${escHtml(book.description || '暂无描述')}</p>
+    </div>`).join('');
+}
+
+function showBookModal(id) {
+  const book = allBooks.find(b => b.id === id);
+  if (!book) return;
+  document.getElementById('modal-title').textContent = book.title;
+  document.getElementById('modal-author').textContent = book.author || '未知作者';
+  document.getElementById('modal-category').textContent = book.category || '通用';
+  document.getElementById('modal-description').textContent = book.description || '暂无描述';
+  const link = document.getElementById('modal-link');
+  if (book.buy_link) { link.href = book.buy_link; link.style.display = 'flex'; }
+  else { link.style.display = 'none'; }
+  const modal = document.getElementById('book-modal');
+  modal.style.display = 'flex';
+  modal.classList.remove('hidden');
+}
+
+function closeBookModal() {
+  const modal = document.getElementById('book-modal');
+  modal.style.display = 'none';
+  modal.classList.add('hidden');
+}
+
+function escHtml(t) {
+  if (!t) return '';
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+document.getElementById('book-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeBookModal();
+});
+
+loadBooks();
+</script>
+{% endblock %}

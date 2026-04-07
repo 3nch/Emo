@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% block title %}检测档案 — 心愈 AI{% endblock %}
+{% block page_title %}检测档案{% endblock %}
+
+{% block extra_head %}
+<style>
+@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}
+.rec-item{display:flex;align-items:center;gap:16px;padding:20px 24px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);transition:all var(--t-fast);}
+.rec-item:hover{border-color:var(--c-primary);box-shadow:var(--shadow-sm);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="padding:32px 28px 60px;">
+  <div class="anim-fade-up" style="margin-bottom:24px;">
+    <div style="font-size:10px;font-weight:700;color:var(--c-primary);letter-spacing:.10em;text-transform:uppercase;margin-bottom:8px;">Assessment Archive</div>
+    <h1 style="font-size:20px;font-weight:800;color:var(--text-1);margin-bottom:4px;letter-spacing:-.03em;">检测档案</h1>
+    <p style="font-size:13px;color:var(--text-3);">您的每一次测评记录，都是自我关注的印记</p>
+  </div>
+  <div id="stats-overview" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px;"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+    <div style="font-size:12px;color:var(--text-3);">按时间倒序展示历史检测记录</div>
+    <div id="history-summary" style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--bg);border:1px solid var(--border);font-size:12px;color:var(--text-3);">最近 10 条</div>
+  </div>
+  <div id="history-list">
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="height:80px;border-radius:var(--r-lg);background:var(--border);animation:shimmer 1.5s ease-in-out infinite;"></div>
+      <div style="height:80px;border-radius:var(--r-lg);background:var(--border);animation:shimmer 1.5s .2s ease-in-out infinite;"></div>
+      <div style="height:80px;border-radius:var(--r-lg);background:var(--border);animation:shimmer 1.5s .4s ease-in-out infinite;"></div>
+    </div>
+  </div>
+  <div id="history-pagination" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+{% if session.get('user_id') %}sessionStorage.setItem('user_id','{{ session.get("user_id") }}');{% endif %}
+const historyPageSize = 10;
+const historyPageBtnBase = 'display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:38px;padding:0 14px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(180deg, #ffffff, #f7f9f5);color:var(--text-2);font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 8px 20px rgba(19,42,19,0.05);transition:all var(--t-fast);';
+const historyPageBtnActive = 'border-color:rgba(49,87,44,0.2);background:linear-gradient(135deg, var(--c-primary), #6a994e);color:#fff;box-shadow:0 12px 24px rgba(79,119,45,0.22);';
+const historyPageBtnDisabled = 'opacity:.45;cursor:not-allowed;box-shadow:none;background:var(--bg);';
+let allRecords = [];
+let historyPage = 1;
+
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/history');
+    allRecords = await res.json();
+    historyPage = 1;
+    renderStats();
+    renderList();
+  } catch(e) {
+    document.getElementById('history-list').innerHTML = '<div class="card" style="padding:60px;text-align:center;"><p style="color:var(--c-red);">数据加载失败，请刷新重试</p></div>';
+    document.getElementById('history-summary').textContent = '加载失败';
+    document.getElementById('history-pagination').innerHTML = '';
+  }
+}
+
+function renderStats() {
+  if (!allRecords.length) return;
+  const total = allRecords.length;
+  const low = allRecords.filter(r => r.risk_level === '低风险').length;
+  const mid = allRecords.filter(r => r.risk_level === '中等风险').length;
+  const avgPhq = (allRecords.reduce((s,r) => s + r.phq_score, 0) / total).toFixed(1);
+  const items = [
+    {label:'总测评次数', value:total,   color:'var(--c-orange)'},
+    {label:'低风险次数', value:low,     color:'var(--c-green-d)'},
+    {label:'中风险次数', value:mid,     color:'var(--c-orange-d)'},
+    {label:'平均抑郁分', value:avgPhq,  color:'var(--c-primary)'},
+  ];
+  document.getElementById('stats-overview').innerHTML = items.map(s =>
+    '<div class="card" style="padding:20px;text-align:center;">' +
+    '<p style="font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:6px;color:' + s.color + ';">' + s.value + '</p>' +
+    '<p style="font-size:11px;font-weight:700;color:var(--text-3);letter-spacing:.08em;text-transform:uppercase;">' + s.label + '</p></div>'
+  ).join('');
+}
+
+function renderList() {
+  const el = document.getElementById('history-list');
+  const summary = document.getElementById('history-summary');
+  const pagination = document.getElementById('history-pagination');
+  if (!allRecords.length) {
+    el.innerHTML = '<div class="card" style="padding:80px;text-align:center;"><div style="font-size:48px;margin-bottom:16px;">📂</div><h3 style="font-size:18px;font-weight:800;color:var(--text-1);margin-bottom:8px;letter-spacing:-.02em;">暂无测评记录</h3><p style="font-size:13px;color:var(--text-3);margin-bottom:24px;">完成首次测评，开启您的心理健康追踪</p><a href="/detect" class="btn btn-primary">开始测评</a></div>';
+    summary.textContent = '暂无检测记录';
+    pagination.innerHTML = '';
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(allRecords.length / historyPageSize));
+  historyPage = Math.min(historyPage, totalPages);
+  const start = (historyPage - 1) * historyPageSize;
+  const end = Math.min(start + historyPageSize, allRecords.length);
+  const pageRecords = allRecords.slice(start, end);
+  summary.textContent = `第 ${historyPage} / ${totalPages} 页 · 共 ${allRecords.length} 条`;
+  const badgeCls = {'高风险':'badge-red','中等风险':'badge-orange','低风险':'badge-green'};
+  let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+  pageRecords.forEach(function(r, i) {
+    const ds = formatBeijingDate(r.created_at);
+    const ts = formatBeijingTime(r.created_at);
+    const bc = badgeCls[r.risk_level] || 'badge-green';
+    html += '<div class="rec-item anim-fade-up" style="animation-delay:' + (i*0.04) + 's;">';
+    html += '<div style="width:48px;height:48px;border-radius:var(--r-md);background:var(--c-primary-bg);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:var(--c-primary);flex-shrink:0;">' + r.phq_score + '</div>';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<p style="font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:3px;">' + ds + ' ' + ts + '</p>';
+    html += '<p style="font-size:12px;color:var(--text-3);">PHQ-9: ' + r.phq_score + ' · GAD-7: ' + r.anxiety_score + ' · 睡眠: ' + r.sleep_score + ' · 压力: ' + r.pressure_score + '</p>';
+    html += '</div>';
+    html += '<span class="badge ' + bc + '">' + r.risk_level + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  renderHistoryPagination(totalPages, start + 1, end);
+}
+
+function renderHistoryPagination(totalPages, start, end) {
+  const pagination = document.getElementById('history-pagination');
+  if (totalPages <= 1) {
+    pagination.innerHTML = `<span style="font-size:12px;color:var(--text-3);">共 ${allRecords.length} 条记录</span>`;
+    return;
+  }
+  let buttons = historyPage > 1
+    ? historyPageButton(`← 上一页`, historyPage - 1, { wide: true })
+    : historyPageButton(`← 上一页`, null, { disabled: true, wide: true });
+  const startPage = Math.max(1, historyPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+  if (startPage > 1) {
+    buttons += historyPageButton('1', 1);
+    if (startPage > 2) buttons += '<span style="font-size:12px;color:var(--text-3);padding:0 4px;">…</span>';
+  }
+  for (let i = startPage; i <= endPage; i++) {
+    buttons += historyPageButton(String(i), i, { active: i === historyPage });
+  }
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) buttons += '<span style="font-size:12px;color:var(--text-3);padding:0 4px;">…</span>';
+    buttons += historyPageButton(String(totalPages), totalPages);
+  }
+  buttons += historyPage < totalPages
+    ? historyPageButton(`下一页 →`, historyPage + 1, { wide: true })
+    : historyPageButton(`下一页 →`, null, { disabled: true, wide: true });
+  pagination.innerHTML = `
+    <div style="font-size:12px;color:var(--text-3);padding-left:2px;">当前展示第 ${start}-${end} 条</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-radius:16px;background:linear-gradient(180deg, rgba(255,255,255,0.92), rgba(247,249,245,0.98));border:1px solid rgba(49,87,44,0.08);box-shadow:0 10px 30px rgba(19,42,19,0.04);">${buttons}</div>
+  `;
+}
+
+function historyPageButton(label, page, options = {}) {
+  const style = [
+    historyPageBtnBase,
+    options.active ? historyPageBtnActive : '',
+    options.disabled ? historyPageBtnDisabled : '',
+    options.wide ? 'padding:0 16px;min-width:92px;' : ''
+  ].join('');
+  const hover = options.active || options.disabled ? '' : ` onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 14px 28px rgba(79,119,45,0.14)';this.style.borderColor='rgba(49,87,44,0.18)';this.style.color='var(--c-primary)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 8px 20px rgba(19,42,19,0.05)';this.style.borderColor='var(--border)';this.style.color='var(--text-2)'"`;
+  if (options.disabled) return `<button type="button" style="${style}" disabled>${label}</button>`;
+  return `<button type="button" style="${style}" onclick="goHistoryPage(${page})"${hover}>${label}</button>`;
+}
+
+function goHistoryPage(page) {
+  historyPage = page;
+  renderList();
+}
+
+window.onload = loadHistory;
+</script>
+{% endblock %}
